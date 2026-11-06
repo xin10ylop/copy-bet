@@ -146,7 +146,7 @@ export function RisingMascot({ className }: { className?: string }) {
   return (
     <div ref={ref} aria-hidden className={clsx("pointer-events-none absolute inset-0 overflow-hidden", className)}>
       <motion.div style={{ y, scale }} className="absolute bottom-[-30%] left-1/2 w-[min(900px,130vw)] -translate-x-1/2 opacity-[0.16]">
-        <Mascot size={900} className="h-auto w-full" />
+        <Mascot size={900} copyColor="#FFFFFF" className="h-auto w-full" />
       </motion.div>
     </div>
   );

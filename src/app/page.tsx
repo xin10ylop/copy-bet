@@ -341,7 +341,7 @@ export default async function Landing() {
           <h2 className="display mx-auto mt-5 max-w-[1000px] text-[56px] sm:text-[104px]">
             Start winning.
             <br />
-            Follow <InlineMascot /> the best.
+            Follow <InlineMascot copyColor="#FFFFFF" /> the best.
           </h2>
           <ButtonLink href="/app" variant="brand" size="lg" className="mt-10">
             Start winning, free

@@ -13,7 +13,7 @@ import { useEffect, useRef } from "react";
  */
 export const ECHO = {
   copy: "wash" as "wash" | "outline",
-  washColor: "#C3D3FF",
+  washColor: "#ECFFB3", // pale lime
   outlineColor: "#8DADFF",
 };
 
@@ -35,6 +35,7 @@ export function Mascot({
   follow = false,
   variant = "color",
   copy = ECHO.copy,
+  copyColor,
   className,
 }: {
   size?: number;
@@ -42,13 +43,18 @@ export function Mascot({
   follow?: boolean;
   variant?: "color" | "white";
   copy?: "wash" | "outline";
+  /** Override the copy's colour (e.g. white on lime backgrounds). */
+  copyColor?: string;
   className?: string;
 }) {
   const white = variant === "white";
   const body = white ? "#FFFFFF" : "#1652F0";
   const eyeWhite = white ? "#1652F0" : "#FFFFFF";
-  const copyFill = copy === "wash" ? (white ? "rgba(255,255,255,.38)" : ECHO.washColor) : "none";
-  const copyStroke = copy === "outline" ? (white ? "#A9C0FF" : ECHO.outlineColor) : "none";
+  // Pale lime nearly disappears on our light background at small sizes (nav logo, icons),
+  // so small marks use a slightly stronger tint of the same lime.
+  const wash = size <= 44 && !white ? "#DCFA80" : ECHO.washColor;
+  const copyFill = copy === "wash" ? (copyColor ?? wash) : "none";
+  const copyStroke = copy === "outline" ? (copyColor ?? (white ? "#A9C0FF" : ECHO.outlineColor)) : "none";
 
   // Pointer-following pupils (logo).
   const ref = useRef<SVGSVGElement>(null);
@@ -121,12 +127,13 @@ export function Mascot({
  * Echo sized to sit inside a line of big headline text. It pops into the gap when the phrase
  * scrolls into view (leaving a little dot where it landed), then looks around and hops.
  */
-export function InlineMascot({ variant = "color" }: { variant?: "color" | "white" }) {
+export function InlineMascot({ variant = "color", copyColor }: { variant?: "color" | "white"; copyColor?: string }) {
   return (
     <span className="relative mx-[0.1em] inline-block h-[0.95em] w-[0.95em] translate-y-[0.12em] align-baseline">
       <motion.span
         aria-hidden
-        className={`absolute bottom-[0.1em] left-[-0.12em] h-[0.09em] w-[0.09em] rounded-full ${variant === "white" ? "bg-white/70" : "bg-[#8DADFF]"}`}
+        className="absolute bottom-[0.1em] left-[-0.12em] h-[0.09em] w-[0.09em] rounded-full"
+        style={{ background: copyColor ?? ECHO.washColor }}
         initial={{ scale: 0 }}
         whileInView={{ scale: [0, 1.4, 1] }}
         viewport={{ once: true, margin: "-25% 0px" }}
@@ -139,7 +146,7 @@ export function InlineMascot({ variant = "color" }: { variant?: "color" | "white
         viewport={{ once: true, margin: "-25% 0px" }}
         transition={{ type: "spring", stiffness: 380, damping: 13, delay: 0.25 }}
       >
-        <Mascot animate variant={variant} />
+        <Mascot animate variant={variant} copyColor={copyColor} />
       </motion.span>
     </span>
   );
