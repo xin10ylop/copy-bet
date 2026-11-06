@@ -92,7 +92,7 @@ export function WordReveal({ text, className }: { text: string; className?: stri
   );
 }
 
-const LEAGUES: [string, string][] = [
+const LEAGUES_A: [string, string][] = [
   ["NFL", "football"],
   ["NBA", "basketball"],
   ["Premier League", "soccer"],
@@ -102,26 +102,35 @@ const LEAGUES: [string, string][] = [
   ["NHL", "hockey"],
   ["ATP & WTA", "tennis"],
   ["La Liga", "soccer"],
-  ["NCAA", "basketball"],
+];
+const LEAGUES_B: [string, string][] = [
+  ["College Football", "football"],
+  ["NCAA Basketball", "basketball"],
+  ["Serie A", "soccer"],
+  ["Boxing", "combat"],
   ["F1", "racing"],
   ["CS2 & LoL", "esports"],
-  ["IPL", "cricket"],
+  ["IPL & T20", "cricket"],
   ["PGA", "golf"],
+  ["EuroLeague", "basketball"],
+  ["Bundesliga", "soccer"],
+  ["Rugby", "rugby"],
 ];
 
-/** Endless strip of leagues. */
-export function LeagueMarquee() {
-  const row = [...LEAGUES, ...LEAGUES];
+/** Endless strip of league bubbles; each one opens that sport in the app. */
+export function LeagueMarquee({ row = "a", reverse = false, speed = 45 }: { row?: "a" | "b"; reverse?: boolean; speed?: number }) {
+  const list = row === "a" ? LEAGUES_A : LEAGUES_B;
+  const items = [...list, ...list];
   return (
-    <div className="relative overflow-hidden py-2 [mask-image:linear-gradient(90deg,transparent,#000_8%,#000_92%,transparent)]">
-      <motion.div className="flex w-max gap-3" animate={{ x: ["0%", "-50%"] }} transition={{ duration: 40, repeat: Infinity, ease: "linear" }}>
-        {row.map(([name, sport], i) => (
-          <span key={i} className="flex items-center gap-2.5 rounded-full bg-white px-5 py-3 text-[17px] font-semibold whitespace-nowrap shadow-[0_2px_12px_rgba(16,23,58,.05)]">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-soft text-brand">
-              <SportIcon sport={sport} size={18} />
+    <div className="group relative overflow-hidden py-1.5 [mask-image:linear-gradient(90deg,transparent,#000_6%,#000_94%,transparent)]">
+      <motion.div className="flex w-max gap-3" animate={{ x: reverse ? ["-50%", "0%"] : ["0%", "-50%"] }} transition={{ duration: speed, repeat: Infinity, ease: "linear" }}>
+        {items.map(([name, sport], i) => (
+          <a key={i} href={`/app?s=${sport}`} className="press flex items-center gap-3 rounded-full bg-white py-2.5 pr-6 pl-2.5 text-[18px] font-semibold whitespace-nowrap shadow-[0_2px_12px_rgba(16,23,58,.05)] hover:bg-brand-soft sm:text-[20px]">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-soft text-brand">
+              <SportIcon sport={sport} size={22} />
             </span>
             {name}
-          </span>
+          </a>
         ))}
       </motion.div>
     </div>

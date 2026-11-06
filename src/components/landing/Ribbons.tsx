@@ -2,12 +2,13 @@
 import { motion } from "motion/react";
 
 // Slow-moving ribbons behind the hero headline, in CopyBet colours.
+// Brand-blue tones only, with a single thin lime thread as the accent.
 const RIBBONS = [
   { d: "M-200 520 C 200 300, 520 760, 900 420 S 1500 160, 1800 380", c: "#1652F0", w: 120, dur: 16 },
-  { d: "M-200 200 C 260 420, 640 60, 1000 300 S 1500 620, 1800 300", c: "#D4FF4F", w: 70, dur: 19 },
-  { d: "M-200 700 C 300 520, 700 900, 1100 640 S 1500 420, 1800 720", c: "#FF7A59", w: 90, dur: 22 },
-  { d: "M-200 380 C 240 260, 560 560, 960 520 S 1440 260, 1800 560", c: "#8FA4FF", w: 60, dur: 18 },
-  { d: "M-200 90 C 300 160, 700 -40, 1100 140 S 1500 260, 1800 80", c: "#2FD38B", w: 56, dur: 24 },
+  { d: "M-200 200 C 260 420, 640 60, 1000 300 S 1500 620, 1800 300", c: "#8DADFF", w: 90, dur: 19 },
+  { d: "M-200 700 C 300 520, 700 900, 1100 640 S 1500 420, 1800 720", c: "#4F7BFF", w: 100, dur: 22 },
+  { d: "M-200 380 C 240 260, 560 560, 960 520 S 1440 260, 1800 560", c: "#D4FF4F", w: 22, dur: 18 },
+  { d: "M-200 90 C 300 160, 700 -40, 1100 140 S 1500 260, 1800 80", c: "#C3D3FF", w: 70, dur: 24 },
 ];
 
 /** `faint` = softer ribbons for a light background. */

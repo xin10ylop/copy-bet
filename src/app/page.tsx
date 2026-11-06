@@ -6,7 +6,6 @@ import { ArtAlerts, ArtBigWin, ArtFollow, ArtLeaderboard, ArtMarkets, ArtSlip, A
 import { InlineMascot, Mascot } from "@/components/Mascot";
 import { LeagueMarquee, RisingMascot, RollingNumber, StatStory, WordReveal } from "@/components/landing/ScrollFx";
 import { BucketQuiz } from "@/components/landing/BucketQuiz";
-import { SportGrid } from "@/components/landing/SportGrid";
 import { Faq } from "@/components/landing/Faq";
 import { Reveal } from "@/components/ui/Reveal";
 import { ButtonLink } from "@/components/ui/Button";
@@ -43,7 +42,7 @@ export default async function Landing() {
 
       {/* ── Hero ── Rule 1: the highest need (winning, money, being good at this), not features. Rule 2: label the reader. */}
       <section className="px-3 pt-[76px] sm:px-8 sm:pt-[96px]">
-        <div className="relative mx-auto max-w-[1200px] overflow-hidden rounded-[32px] bg-[linear-gradient(160deg,#e3eaff_0%,#f3f6ff_50%,#f1ffd6_100%)] sm:rounded-[40px]">
+        <div className="relative mx-auto max-w-[1200px] overflow-hidden rounded-[32px] bg-[linear-gradient(160deg,#e3eaff_0%,#f3f6ff_55%,#e8eeff_100%)] sm:rounded-[40px]">
           <Ribbons faint />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_40%,rgba(255,255,255,.85)_0%,rgba(255,255,255,.55)_40%,rgba(255,255,255,0)_75%)]" />
           <div className="relative grid items-center gap-12 px-6 pt-14 pb-12 sm:px-12 sm:pt-20 lg:grid-cols-[1.15fr_1fr] lg:pb-16">
@@ -178,22 +177,20 @@ export default async function Landing() {
         </div>
       </section>
 
-      {/* ── Sports squares ── */}
-      <section id="sports" className="scroll-mt-24 px-4 pt-24 sm:px-8 sm:pt-32">
-        <div className="mx-auto max-w-[1200px]">
+      {/* ── Sports: two rows of league bubbles drifting in opposite directions ── */}
+      <section id="sports" className="scroll-mt-24 pt-24 sm:pt-32">
+        <div className="mx-auto max-w-[1200px] px-4 sm:px-8">
           <Reveal className="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
             <div>
               <Eyebrow>12 sports · 500+ leagues</Eyebrow>
-              <h2 className="display mt-5 text-[44px] sm:text-[72px]">Start with your sport.</h2>
+              <h2 className="display mt-5 text-[44px] sm:text-[72px]">Win in the sport you love.</h2>
             </div>
-            <p className="max-w-[360px] text-[18px] text-ink-2">The best NBA bettor isn&apos;t the best NFL bettor. Pick your sport and follow who wins there.</p>
+            <p className="max-w-[360px] text-[18px] text-ink-2">The best NBA bettor isn&apos;t the best NFL bettor. Pick your sport and follow the people who win there.</p>
           </Reveal>
-          <div className="mt-10">
-            <SportGrid perSport={d.perSport} />
-          </div>
-          <div className="mt-6">
-            <LeagueMarquee />
-          </div>
+        </div>
+        <div className="mt-10 space-y-3">
+          <LeagueMarquee row="a" />
+          <LeagueMarquee row="b" reverse speed={55} />
         </div>
       </section>
 

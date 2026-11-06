@@ -81,6 +81,21 @@ function Deck({ label, labelIcon, cards, dark }: { label: string; labelIcon: Rea
     row.current?.scrollBy({ left: dir * (w + CARD_GAP), behavior: "smooth" });
   };
 
+  // Once dealt, the row slides to the next card on its own (and loops), pausing while touched or hovered.
+  const paused = useRef(false);
+  useEffect(() => {
+    if (!dealt) return;
+    const t = setInterval(() => {
+      const r = row.current;
+      if (!r || paused.current) return;
+      const atEnd = r.scrollLeft + r.clientWidth >= r.scrollWidth - 8;
+      if (atEnd) r.scrollTo({ left: 0, behavior: "smooth" });
+      else scrollBy(1);
+    }, 3200);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dealt]);
+
   return (
     <div ref={wrap} className="relative">
       <div className="mx-auto flex max-w-[1240px] items-center justify-between px-4 sm:px-8">
@@ -98,7 +113,25 @@ function Deck({ label, labelIcon, cards, dark }: { label: string; labelIcon: Rea
           ))}
         </motion.div>
       </div>
-      <div ref={row} className="no-scrollbar mt-5 flex snap-x snap-mandatory overflow-x-auto px-4 pb-6 sm:px-8 lg:px-[max(32px,calc((100vw-1240px)/2+32px))]" style={{ gap: CARD_GAP }}>
+      <div
+        ref={row}
+        onPointerEnter={() => {
+          paused.current = true;
+        }}
+        onPointerLeave={() => {
+          paused.current = false;
+        }}
+        onTouchStart={() => {
+          paused.current = true;
+        }}
+        onTouchEnd={() => {
+          setTimeout(() => {
+            paused.current = false;
+          }, 4000);
+        }}
+        className="no-scrollbar mt-5 flex snap-x snap-mandatory overflow-x-auto px-4 pb-6 sm:px-8 lg:px-[max(32px,calc((100vw-1240px)/2+32px))]"
+        style={{ gap: CARD_GAP }}
+      >
         {cards.map((c, i) => (
           <motion.div
             key={c.title}
@@ -109,7 +142,7 @@ function Deck({ label, labelIcon, cards, dark }: { label: string; labelIcon: Rea
             animate={dealt || !offsets.length ? { x: 0, scale: 1, opacity: 1 } : { x: offsets[i] ?? 0, scale: 1 - i * 0.045, opacity: i < 3 ? 1 : 0 }}
             transition={{ type: "spring", stiffness: 170, damping: 24, delay: dealt ? i * 0.05 : 0 }}
             style={{ zIndex: cards.length - i, transformOrigin: "left center", background: c.bg, color: c.ink ?? "#10173a" }}
-            className="relative flex aspect-[3/4] w-[78vw] max-w-[340px] shrink-0 snap-start flex-col overflow-hidden rounded-[28px] sm:w-[340px]"
+            className="relative flex aspect-[3/4] w-[78vw] max-w-[380px] shrink-0 snap-start flex-col overflow-hidden rounded-[28px] sm:w-[340px] lg:w-[380px]"
           >
             <div className="relative z-10 p-6 pb-0 text-[21px] leading-[1.25] font-medium tracking-[-0.01em] sm:p-7 sm:pb-0 sm:text-[22px]">{c.title}</div>
             <div className="relative flex-1">{c.art}</div>
