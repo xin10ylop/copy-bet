@@ -24,11 +24,11 @@
   --win-soft: #dbf6e9;
   --loss: #e8435f;
   --loss-soft: #fde3e8;
-  --night: #0b0f26;
-  --night-2: #151a37;
-  --night-3: #222849;
-  --night-ink: #f6f7ff;
-  --night-ink-2: #a3a9c7;
+  --night: #141418;
+  --night-2: #1d1d22;
+  --night-3: #2a2a31;
+  --night-ink: #f6f6f8;
+  --night-ink-2: #a6a6b0;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   color-scheme: light;
 }
@@ -36,15 +36,15 @@
 /* The app (not the landing page) follows the phone's dark mode. */
 @media (prefers-color-scheme: dark) {
   .app-theme {
-    --bg: #0b0f26;
-    --surface: #151a37;
-    --surface-2: #1d2346;
-    --surface-3: #283058;
-    --line: #262d52;
-    --ink: #f3f5ff;
-    --ink-2: #aab0cf;
-    --ink-3: #737a9c;
-    --brand-soft: #232d66;
+    --bg: #111114;
+    --surface: #1c1c21;
+    --surface-2: #26262d;
+    --surface-3: #33333c;
+    --line: #2c2c33;
+    --ink: #f5f5f7;
+    --ink-2: #a8a8b3;
+    --ink-3: #75757f;
+    --brand-soft: #262f5c;
     --win: #2fd38b;
     --win-soft: #12382a;
     --loss: #ff6b84;

@@ -10,7 +10,9 @@ const RIBBONS = [
   { d: "M-200 90 C 300 160, 700 -40, 1100 140 S 1500 260, 1800 80", c: "#2FD38B", w: 56, dur: 24 },
 ];
 
-export function Ribbons() {
+/** `faint` = softer ribbons for a light background. */
+export function Ribbons({ faint = false }: { faint?: boolean }) {
+  const o = faint ? 0.5 : 0.85;
   return (
     <svg className="absolute inset-0 h-full w-full" viewBox="0 0 1600 800" preserveAspectRatio="xMidYMid slice" aria-hidden>
       {RIBBONS.map((r, i) => (
@@ -21,9 +23,8 @@ export function Ribbons() {
           stroke={r.c}
           strokeWidth={r.w}
           strokeLinecap="round"
-          opacity={0.85}
           initial={{ pathLength: 0, opacity: 0 }}
-          animate={{ pathLength: 1, opacity: 0.85, x: [0, i % 2 ? 60 : -60, 0], y: [0, i % 2 ? -30 : 30, 0] }}
+          animate={{ pathLength: 1, opacity: o, x: [0, i % 2 ? 60 : -60, 0], y: [0, i % 2 ? -30 : 30, 0] }}
           transition={{ pathLength: { duration: 2.2, delay: 0.15 * i, ease: [0.22, 1, 0.36, 1] }, opacity: { duration: 1 }, x: { duration: r.dur, repeat: Infinity, ease: "easeInOut" }, y: { duration: r.dur * 1.3, repeat: Infinity, ease: "easeInOut" } }}
         />
       ))}

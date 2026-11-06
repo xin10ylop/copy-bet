@@ -52,7 +52,7 @@ export default function SearchPage() {
         <svg width="18" height="18" viewBox="0 0 24 24" className="shrink-0 text-ink-3" aria-hidden>
           <path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm9 16-4-4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
         </svg>
-        <input value={wallet} onChange={(e) => setWallet(e.target.value)} placeholder="Paste a wallet or Polymarket profile link" className="h-11 min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-ink-3" />
+        <input value={wallet} onChange={(e) => setWallet(e.target.value)} placeholder="Paste a bettor ID or profile link" className="h-11 min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-ink-3" />
         {/0x[0-9a-fA-F]{40}/.test(wallet) && (
           <Button size="sm" className="h-11" type="submit">
             Open

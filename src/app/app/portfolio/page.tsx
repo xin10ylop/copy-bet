@@ -8,9 +8,8 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Segmented } from "@/components/ui/Segmented";
 import { ButtonLink } from "@/components/ui/Button";
 import { SportIcon } from "@/components/SportIcon";
-import { TIMINGS, formatUsd } from "@/lib/filters";
+import { TIMINGS, formatOdds, formatUsd } from "@/lib/filters";
 import { leagueLabel, sportLabel } from "@/lib/sports";
-import { polymarketEventUrl } from "@/lib/polymarket";
 
 interface FeedItem {
   id: string;
@@ -111,7 +110,7 @@ export default function PortfolioPage() {
             ) : (
               <AnimatePresence initial={false}>
                 {feed.map((it) => (
-                  <motion.a layout key={it.id} href={polymarketEventUrl(it.eventSlug)} target="_blank" rel="noreferrer" initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} className="press flex gap-3 rounded-[22px] bg-surface p-4">
+                  <motion.div layout key={it.id} initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} className="flex gap-3 rounded-[22px] bg-surface p-4">
                     <Avatar address={it.address} src={it.profileImage} name={it.name} size={40} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
@@ -124,12 +123,12 @@ export default function PortfolioPage() {
                       <div className="mt-1.5 flex items-center gap-2">
                         <span className={clsx("rounded-full px-2 py-0.5 text-[11px] font-bold", it.side === "BUY" ? "bg-win-soft text-win" : "bg-loss-soft text-loss")}>{it.side === "BUY" ? "BOUGHT" : "SOLD"}</span>
                         <span className="text-[15px] font-semibold">
-                          {it.outcome} @ {Math.round(it.price * 100)}¢
+                          {it.outcome} @ {formatOdds(it.price)}
                         </span>
                         <span className="num ml-auto text-[15px] font-semibold">{formatUsd(it.usd)}</span>
                       </div>
                     </div>
-                  </motion.a>
+                  </motion.div>
                 ))}
               </AnimatePresence>
             )}

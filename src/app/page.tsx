@@ -1,6 +1,6 @@
 import { Nav } from "@/components/landing/Nav";
 import { Ribbons } from "@/components/landing/Ribbons";
-import { AlertPhone } from "@/components/landing/AlertPhone";
+import { HeroPhone } from "@/components/landing/HeroPhone";
 import { BucketQuiz } from "@/components/landing/BucketQuiz";
 import { SportGrid } from "@/components/landing/SportGrid";
 import { Faq } from "@/components/landing/Faq";
@@ -14,8 +14,20 @@ import { sportLabel } from "@/lib/sports";
 
 export const dynamic = "force-dynamic";
 
-function Eyebrow({ children, dark }: { children: React.ReactNode; dark?: boolean }) {
-  return <span className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-[15px] font-medium ${dark ? "bg-white/10 text-white" : "bg-white text-ink shadow-[0_2px_12px_rgba(16,23,58,.06)]"}`}>{children}</span>;
+function Eyebrow({ children, tone = "white" }: { children: React.ReactNode; tone?: "white" | "glass" }) {
+  return <span className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-[15px] font-medium ${tone === "glass" ? "bg-white/70 text-ink backdrop-blur" : "bg-white text-ink shadow-[0_2px_12px_rgba(16,23,58,.06)]"}`}>{children}</span>;
+}
+
+function Check({ on = "brand" }: { on?: "brand" | "lime" | "white" }) {
+  const bg = on === "lime" ? "bg-lime" : on === "white" ? "bg-white" : "bg-brand-soft";
+  const stroke = on === "brand" ? "#3a5bff" : on === "white" ? "#3a5bff" : "#10173a";
+  return (
+    <span className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${bg}`}>
+      <svg width="10" height="10" viewBox="0 0 16 16" aria-hidden>
+        <path d="M3.5 8.5l3 3 6-7" stroke={stroke} strokeWidth="2.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
+  );
 }
 
 export default async function Landing() {
@@ -25,38 +37,42 @@ export default async function Landing() {
     <main className="overflow-x-clip">
       <Nav />
 
-      {/* ── Hero ── Rule 1 (highest need) + Rule 2 (label the reader) */}
+      {/* ── Hero ── Rule 1: the highest need (winning, money, being good at this), not features. Rule 2: label the reader. */}
       <section className="px-3 pt-[76px] sm:px-8 sm:pt-[96px]">
-        <div className="relative mx-auto max-w-[1200px] overflow-hidden rounded-[32px] bg-night text-white sm:rounded-[40px]">
-          <Ribbons />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(11,15,38,.82)_0%,rgba(11,15,38,.55)_45%,rgba(11,15,38,.2)_100%)]" />
-          <div className="relative grid items-center gap-10 px-6 pt-14 pb-10 sm:px-12 sm:pt-20 lg:grid-cols-[1.15fr_1fr] lg:pb-16">
+        <div className="relative mx-auto max-w-[1200px] overflow-hidden rounded-[32px] bg-[linear-gradient(160deg,#e3eaff_0%,#f3f6ff_50%,#f1ffd6_100%)] sm:rounded-[40px]">
+          <Ribbons faint />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_40%,rgba(255,255,255,.85)_0%,rgba(255,255,255,.55)_40%,rgba(255,255,255,0)_75%)]" />
+          <div className="relative grid items-center gap-12 px-6 pt-14 pb-12 sm:px-12 sm:pt-20 lg:grid-cols-[1.15fr_1fr] lg:pb-16">
             <div className="text-center lg:text-left">
               <Reveal>
-                <Eyebrow dark>For bettors who play to win</Eyebrow>
+                <Eyebrow tone="glass">For bettors who play to win</Eyebrow>
               </Reveal>
               <Reveal delay={0.08}>
-                <h1 className="display mt-6 text-[48px] sm:text-[72px] lg:text-[84px]">Bet with the best sports bettors in the world.</h1>
+                <h1 className="display mt-6 text-[56px] sm:text-[84px] lg:text-[96px]">
+                  Start winning
+                  <br />
+                  your bets.
+                </h1>
               </Reveal>
               <Reveal delay={0.16}>
-                <p className="mx-auto mt-6 max-w-[520px] text-[19px] leading-relaxed text-night-ink-2 sm:text-[21px] lg:mx-0">
-                  See who really wins on Polymarket, sport by sport. Follow them, and get every bet they place on Telegram within seconds.
+                <p className="mx-auto mt-6 max-w-[520px] text-[19px] leading-relaxed text-ink-2 sm:text-[21px] lg:mx-0">
+                  Follow the best sports bettors in the world. Bet what they bet, the second they bet it, and start turning the games you watch into profit.
                 </p>
               </Reveal>
               <Reveal delay={0.24}>
                 <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start">
-                  <ButtonLink href="/app" variant="lime" size="lg" className="w-full sm:w-auto">
-                    Start free
+                  <ButtonLink href="/app" variant="brand" size="lg" className="w-full sm:w-auto">
+                    Start winning
                   </ButtonLink>
-                  <ButtonLink href="/app?sort=profit" variant="light" size="lg" className="w-full bg-white/10 text-white hover:bg-white/20 sm:w-auto">
-                    See today&apos;s top bettors
+                  <ButtonLink href="/app?sort=profit" variant="light" size="lg" className="w-full sm:w-auto">
+                    See who&apos;s winning today
                   </ButtonLink>
                 </div>
-                <p className="mt-4 text-[14px] text-night-ink-2">Free to start · No card · Takes 30 seconds</p>
+                <p className="mt-4 text-[14px] text-ink-3">Free to start · No card · Works with any bookmaker</p>
               </Reveal>
             </div>
             <Reveal delay={0.2} y={60}>
-              {d.alerts.length > 0 && <AlertPhone alerts={d.alerts} />}
+              <HeroPhone bettors={d.phone.bettors} alert={d.phone.alert} compare={d.compare} />
             </Reveal>
           </div>
         </div>
@@ -66,19 +82,19 @@ export default async function Landing() {
       <section className="px-4 pt-6 sm:px-8">
         <div className="mx-auto grid max-w-[1200px] grid-cols-3 gap-2 sm:gap-3">
           {[
-            { k: d.tracked ? d.tracked.toLocaleString("en-US") : "—", v: "sports bettors tracked" },
-            { k: d.topProfit30d ? formatUsd(d.topProfit30d) : "—", v: "won by this month's #1" },
+            { k: d.topProfit30d ? `+${formatUsd(d.topProfit30d)}` : "—", v: "won this month by our #1 bettor", win: true },
+            { k: d.tracked ? d.tracked.toLocaleString("en-US") : "—", v: "top bettors you can follow" },
             { k: "Seconds", v: "from their bet to your phone" },
           ].map((x) => (
             <Reveal key={x.v} className="rounded-[24px] bg-white p-4 text-center sm:p-6">
-              <div className="display num text-[24px] sm:text-[44px]">{x.k}</div>
+              <div className={`display num text-[24px] sm:text-[44px] ${x.win ? "text-win" : ""}`}>{x.k}</div>
               <div className="mt-1 text-[12.5px] leading-tight text-ink-2 sm:text-[16px]">{x.v}</div>
             </Reveal>
           ))}
         </div>
       </section>
 
-      {/* ── Rule 4–5: question-based, bucket question ── */}
+      {/* ── Rules 4–5: ask, don't tell. A bucket question. ── */}
       <section className="px-4 pt-24 sm:px-8 sm:pt-32">
         <div className="mx-auto max-w-[1200px]">
           <Reveal>
@@ -93,22 +109,18 @@ export default async function Landing() {
 
       {/* ── Rule 3: loss aversion ── */}
       <section className="px-3 pt-24 sm:px-8 sm:pt-32">
-        <div className="mx-auto max-w-[1200px] rounded-[32px] bg-night px-6 py-16 text-white sm:rounded-[40px] sm:px-16 sm:py-24">
+        <div className="mx-auto max-w-[1200px] rounded-[32px] bg-white px-6 py-16 sm:rounded-[40px] sm:px-16 sm:py-24">
           <Reveal>
-            <h2 className="display max-w-[900px] text-[40px] sm:text-[68px]">
-              Every bet on a hunch is money handed to someone who <span className="text-lime">did the homework.</span>
+            <h2 className="display max-w-[920px] text-[40px] sm:text-[68px]">
+              Every bet on a hunch is money you hand to <span className="text-brand">the bookmaker.</span>
             </h2>
           </Reveal>
           <div className="mt-12 grid gap-8 sm:grid-cols-2">
             <Reveal delay={0.1}>
-              <p className="text-[19px] leading-relaxed text-night-ink-2 sm:text-[21px]">
-                On Polymarket you don&apos;t bet against a bookmaker. You bet against other people. And the sharpest of them win again and again, often on the other side of your bets.
-              </p>
+              <p className="text-[19px] leading-relaxed text-ink-2 sm:text-[21px]">Bookmakers stay rich because most bettors guess. A small group of bettors beat them anyway, month after month, with real money and a real record.</p>
             </Reveal>
             <Reveal delay={0.18}>
-              <p className="text-[19px] leading-relaxed text-white sm:text-[21px]">
-                CopyBet shows you exactly who they are, what they bet, and how they do in each sport. So next time, you can be on their side.
-              </p>
+              <p className="text-[19px] leading-relaxed text-ink sm:text-[21px]">CopyBet shows you exactly who they are and what they bet. So your next bet isn&apos;t a guess. It&apos;s theirs.</p>
             </Reveal>
           </div>
         </div>
@@ -122,7 +134,7 @@ export default async function Landing() {
               <Eyebrow>12 sports · 500+ leagues</Eyebrow>
               <h2 className="display mt-5 text-[44px] sm:text-[72px]">Start with your sport.</h2>
             </div>
-            <p className="max-w-[360px] text-[18px] text-ink-2">The best NBA bettor isn&apos;t the best NFL bettor. Pick your sport to see who wins there.</p>
+            <p className="max-w-[360px] text-[18px] text-ink-2">The best NBA bettor isn&apos;t the best NFL bettor. Pick your sport and follow who wins there.</p>
           </Reveal>
           <div className="mt-10">
             <SportGrid perSport={d.perSport} />
@@ -135,13 +147,13 @@ export default async function Landing() {
         <div className="mx-auto max-w-[1200px]">
           <Reveal>
             <Eyebrow>How it works</Eyebrow>
-            <h2 className="display mt-5 text-[44px] sm:text-[72px]">Three steps. That&apos;s it.</h2>
+            <h2 className="display mt-5 max-w-[860px] text-[44px] sm:text-[72px]">Three steps to betting the right way.</h2>
           </Reveal>
           <div className="mt-10 grid gap-3 lg:grid-cols-3">
-            <Reveal className="flex flex-col lg:min-h-[420px] overflow-hidden rounded-[32px] bg-brand p-7 text-white sm:p-9">
+            <Reveal className="flex flex-col overflow-hidden rounded-[32px] bg-brand p-7 text-white sm:p-9 lg:min-h-[420px]">
               <div className="text-[15px] font-semibold opacity-70">01</div>
-              <h3 className="title mt-2 text-[28px] leading-tight">Find who actually wins</h3>
-              <p className="mt-2 text-[17px] text-white/75">Filter by sport, ROI, win rate, profit and when they bet. Or don&apos;t filter at all.</p>
+              <h3 className="title mt-2 text-[28px] leading-tight">Find the winners</h3>
+              <p className="mt-2 text-[17px] text-white/75">See who actually makes money in your sport. Sort by profit, ROI or win rate, or don&apos;t filter at all.</p>
               <div className="mt-auto flex flex-wrap gap-2 pt-8">
                 {["NBA", "ROI > 15%", "Last 30 days", "50+ bets", "Game day"].map((t, i) => (
                   <span key={t} className={`rounded-full px-4 py-2 text-[15px] font-medium ${i % 2 ? "bg-white/15" : "bg-white text-brand"}`}>
@@ -150,22 +162,24 @@ export default async function Landing() {
                 ))}
               </div>
             </Reveal>
-            <Reveal delay={0.08} className="flex flex-col lg:min-h-[420px] overflow-hidden rounded-[32px] bg-[#10173a] p-7 text-white sm:p-9">
-              <div className="text-[15px] font-semibold opacity-70">02</div>
-              <h3 className="title mt-2 text-[28px] leading-tight">Choose which bets you want</h3>
-              <p className="mt-2 text-[17px] text-white/70">Everything they bet, or only the bets that match your filter. Your filter is already ticked for you.</p>
+            <Reveal delay={0.08} className="flex flex-col overflow-hidden rounded-[32px] bg-white p-7 sm:p-9 lg:min-h-[420px]">
+              <div className="text-[15px] font-semibold text-ink-3">02</div>
+              <h3 className="title mt-2 text-[28px] leading-tight">Pick the bets you want</h3>
+              <p className="mt-2 text-[17px] text-ink-2">All of their bets, or only the ones that fit you. Your filter is already ticked for you.</p>
               <div className="mt-auto space-y-2 pt-8">
-                {[
-                  ["Everything they bet", false],
-                  ["Only Basketball", true],
-                  ["Only bets over $1,000", true],
-                ].map(([t, on]) => (
-                  <div key={t as string} className="flex items-center justify-between rounded-2xl bg-white/10 px-4 py-3 text-[16px]">
+                {(
+                  [
+                    ["Everything they bet", false],
+                    ["Only Basketball", true],
+                    ["Only bets over $1,000", true],
+                  ] as const
+                ).map(([t, on]) => (
+                  <div key={t} className="flex items-center justify-between rounded-2xl bg-surface-2 px-4 py-3 text-[16px]">
                     {t}
-                    <span className={`flex h-6 w-6 items-center justify-center rounded-full ${on ? "bg-lime" : "border-2 border-white/30"}`}>
+                    <span className={`flex h-6 w-6 items-center justify-center rounded-full ${on ? "bg-brand" : "border-2 border-surface-3"}`}>
                       {on && (
                         <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden>
-                          <path d="M3.5 8.5l3 3 6-7" stroke="#10173a" strokeWidth="2.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d="M3.5 8.5l3 3 6-7" stroke="#fff" strokeWidth="2.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       )}
                     </span>
@@ -173,37 +187,32 @@ export default async function Landing() {
                 ))}
               </div>
             </Reveal>
-            <Reveal delay={0.16} className="flex flex-col lg:min-h-[420px] overflow-hidden rounded-[32px] bg-lime p-7 text-[#10173a] sm:p-9">
+            <Reveal delay={0.16} className="flex flex-col overflow-hidden rounded-[32px] bg-lime p-7 text-[#10173a] sm:p-9 lg:min-h-[420px]">
               <div className="text-[15px] font-semibold opacity-60">03</div>
-              <h3 className="title mt-2 text-[28px] leading-tight">Get the bet in seconds</h3>
-              <p className="mt-2 text-[17px] text-[#10173a]/70">A Telegram message the moment they bet, with the price, the size and their record.</p>
-              <div className="mt-auto rounded-[22px] rounded-tl-md bg-white p-4 text-[15px] shadow-[0_20px_40px_-20px_rgba(16,23,58,.35)]">
+              <h3 className="title mt-2 text-[28px] leading-tight">Bet it the second they do</h3>
+              <p className="mt-2 text-[17px] text-[#10173a]/70">Their pick lands on your phone the moment they bet. Place it with your bookmaker in seconds.</p>
+              <div className="mt-8 rounded-[22px] rounded-tl-md bg-white p-4 text-[15px] lg:mt-auto shadow-[0_20px_40px_-20px_rgba(16,23,58,.35)]">
                 <div className="flex items-center gap-2 font-semibold">
                   <span className="h-2 w-2 rounded-full bg-win" /> New bet
                 </div>
                 <div className="mt-1 text-ink-2">NBA · Lakers vs. Celtics · in 3h</div>
-                <div className="mt-1 font-semibold">Lakers @ 42¢ · $2,500</div>
-                <div className="mt-3 flex gap-2 text-[13px] font-semibold">
-                  <span className="rounded-full bg-brand-soft px-3 py-1.5 text-brand">Open market</span>
-                  <span className="rounded-full bg-surface-2 px-3 py-1.5">View profile</span>
-                </div>
+                <div className="mt-1 font-semibold">Lakers @ 2.38 · $2,500</div>
+                <div className="mt-1 text-[13px] font-medium text-win">+18.6% ROI on NBA (30d)</div>
               </div>
             </Reveal>
           </div>
         </div>
       </section>
 
-      {/* ── Detail: your filter vs everything (real example) ── */}
+      {/* ── Detail: real example ── */}
       {d.compare && (
         <section className="px-4 pt-24 sm:px-8 sm:pt-32">
           <div className="mx-auto grid max-w-[1200px] items-center gap-10 lg:grid-cols-2">
             <Reveal>
               <Eyebrow>Real example</Eyebrow>
               <h2 className="display mt-5 text-[44px] sm:text-[64px]">Same bettor. Very different story.</h2>
-              <p className="mt-5 max-w-[480px] text-[19px] leading-relaxed text-ink-2">
-                A leaderboard shows one number. CopyBet shows where someone is actually good, so you follow the bets that win and skip the ones that don&apos;t.
-              </p>
-              <ButtonLink href={`/app/bettor/${d.compare.address}?s=${d.compare.sport}&tf=all`} variant="dark" size="md" className="mt-8">
+              <p className="mt-5 max-w-[480px] text-[19px] leading-relaxed text-ink-2">Most people follow one number. Winners follow the bets that actually win. See exactly where someone makes their money, and copy only those bets.</p>
+              <ButtonLink href={`/app/bettor/${d.compare.address}?s=${d.compare.sport}&tf=all`} variant="brand" size="md" className="mt-8">
                 See {d.compare.name}&apos;s profile
               </ButtonLink>
             </Reveal>
@@ -246,7 +255,7 @@ export default async function Landing() {
             <Reveal className="rounded-[32px] bg-white p-7 sm:p-10">
               <div className="text-[15px] font-semibold text-ink-3">If nothing changes</div>
               <ul className="mt-6 space-y-5 text-[19px] text-ink-2">
-                {["You're still betting on gut feeling.", "Still chasing losses after a bad weekend.", "Still finding out what the sharps bet after the price already moved."].map((t) => (
+                {["You're still betting on gut feeling.", "Still chasing losses after a bad weekend.", "Still watching your balance go the wrong way."].map((t) => (
                   <li key={t} className="flex gap-3">
                     <span className="mt-1.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-loss-soft">
                       <span className="h-1.5 w-1.5 rounded-full bg-loss" />
@@ -257,15 +266,11 @@ export default async function Landing() {
               </ul>
             </Reveal>
             <Reveal delay={0.1} className="rounded-[32px] bg-brand p-7 text-white sm:p-10">
-              <div className="text-[15px] font-semibold text-white/70">With CopyBet</div>
+              <div className="text-[15px] font-semibold text-white/70">If you start today</div>
               <ul className="mt-6 space-y-5 text-[19px]">
-                {["You know exactly who the best bettors in your sport are.", "Their bets reach your phone seconds after they place them.", "Every bet you make has a real record behind it."].map((t) => (
+                {["You bet alongside the best bettors in the world.", "Every bet you place has a winning record behind it.", "You know why you win, and you keep winning."].map((t) => (
                   <li key={t} className="flex gap-3">
-                    <span className="mt-1.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-lime">
-                      <svg width="10" height="10" viewBox="0 0 16 16" aria-hidden>
-                        <path d="M3.5 8.5l3 3 6-7" stroke="#10173a" strokeWidth="2.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </span>
+                    <Check on="lime" />
                     {t}
                   </li>
                 ))}
@@ -276,7 +281,7 @@ export default async function Landing() {
         </div>
       </section>
 
-      {/* ── Rule 1 + 7: pricing, calm ── */}
+      {/* ── Rule 1 + 7: pricing, said calmly ── */}
       <section id="pricing" className="scroll-mt-24 px-4 pt-24 sm:px-8 sm:pt-32">
         <div className="mx-auto max-w-[1200px]">
           <Reveal className="text-center">
@@ -291,7 +296,7 @@ export default async function Landing() {
                 <span className="display text-[56px]">$0</span>
               </div>
               <ul className="mt-6 mb-2 space-y-3 text-[17px] text-ink-2">
-                {["Every stat on every bettor", "Filters and custom search", "Follow up to 3 bettors", "Telegram alerts, 10 minutes later"].map((t) => (
+                {["See every winning bettor's full record", "Filters and custom search", "Follow up to 3 bettors", "Their bets on Telegram, 10 minutes later"].map((t) => (
                   <li key={t} className="flex gap-3">
                     <Check /> {t}
                   </li>
@@ -301,23 +306,23 @@ export default async function Landing() {
                 Start free
               </ButtonLink>
             </Reveal>
-            <Reveal delay={0.08} className="relative flex flex-col overflow-hidden rounded-[32px] bg-night p-7 text-white sm:p-9">
+            <Reveal delay={0.08} className="relative flex flex-col overflow-hidden rounded-[32px] bg-brand p-7 text-white sm:p-9">
               <div className="flex items-center justify-between">
                 <div className="title text-[22px]">Pro</div>
                 <span className="rounded-full bg-lime px-3 py-1 text-[13px] font-semibold text-[#10173a]">Instant</span>
               </div>
               <div className="mt-4 flex items-baseline gap-1">
                 <span className="display text-[56px]">$29</span>
-                <span className="text-night-ink-2">/ month</span>
+                <span className="text-white/70">/ month</span>
               </div>
-              <ul className="mt-6 space-y-3 text-[17px] text-night-ink-2">
-                {["Alerts within seconds", "Follow unlimited bettors", "Choose exactly which bets you get", "Saved searches"].map((t) => (
-                  <li key={t} className="flex gap-3 text-white">
-                    <Check lime /> {t}
+              <ul className="mt-6 space-y-3 text-[17px]">
+                {["Their bets within seconds, before the odds move", "Follow as many winners as you like", "Choose exactly which bets you get", "Saved searches"].map((t) => (
+                  <li key={t} className="flex gap-3">
+                    <Check on="lime" /> {t}
                   </li>
                 ))}
               </ul>
-              <p className="mt-6 text-[15px] text-night-ink-2">Less than one bet a month. Catch one sharp bet in time, and it has paid for itself.</p>
+              <p className="mt-6 text-[15px] text-white/75">Less than a single bet. One winning pick pays for it.</p>
               <ButtonLink href="/app/account" variant="lime" size="lg" className="mt-6 w-full">
                 Go Pro
               </ButtonLink>
@@ -343,9 +348,9 @@ export default async function Landing() {
         <div className="relative mx-auto max-w-[1200px] overflow-hidden rounded-[32px] bg-brand px-6 py-20 text-center text-white sm:rounded-[40px] sm:py-28">
           <Reveal>
             <h2 className="display mx-auto max-w-[900px] text-[44px] sm:text-[76px]">You&apos;re the kind of bettor who does the homework.</h2>
-            <p className="mx-auto mt-6 max-w-[520px] text-[20px] text-white/80">Now do it with the best bettors in the world next to you.</p>
+            <p className="mx-auto mt-6 max-w-[520px] text-[20px] text-white/80">Now start winning like one.</p>
             <ButtonLink href="/app" variant="lime" size="lg" className="mt-10">
-              Start free
+              Start winning
             </ButtonLink>
           </Reveal>
         </div>
@@ -355,20 +360,10 @@ export default async function Landing() {
         <div className="mx-auto flex max-w-[1200px] flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
           <Logo />
           <p className="max-w-[640px] text-[13px] leading-relaxed text-ink-3">
-            CopyBet is an independent product and is not affiliated with or endorsed by Polymarket. Data comes from Polymarket&apos;s public APIs and blockchain records. Nothing here is financial advice. Past results don&apos;t guarantee future results. Only bet what you can afford to lose, where it&apos;s legal for you. 18+.
+            Records come from real, settled bets placed with real money. Nothing here is financial advice, and past results don&apos;t guarantee future results. Betting involves risk: only bet what you can afford to lose, where it&apos;s legal for you. 18+. Please gamble responsibly.
           </p>
         </div>
       </footer>
     </main>
-  );
-}
-
-function Check({ lime }: { lime?: boolean }) {
-  return (
-    <span className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${lime ? "bg-lime" : "bg-brand-soft"}`}>
-      <svg width="10" height="10" viewBox="0 0 16 16" aria-hidden>
-        <path d="M3.5 8.5l3 3 6-7" stroke={lime ? "#10173a" : "#3a5bff"} strokeWidth="2.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    </span>
   );
 }

@@ -11,10 +11,10 @@
 
 import { db } from "../src/lib/server/db";
 import { classifyEvent, leagueLabel, loadLeagueCodes, sportLabel } from "../src/lib/sports";
-import { formatPct, formatUsd, timingFor, type TimingKey } from "../src/lib/filters";
+import { formatOdds, formatPct, formatUsd, timingFor, type TimingKey } from "../src/lib/filters";
 import { bettorStats } from "../src/lib/server/stats";
 import { indexBettor, indexLeaderboards } from "../src/lib/server/indexer";
-import { displayName, gammaEvents, polymarketEventUrl } from "../src/lib/polymarket";
+import { displayName, gammaEvents } from "../src/lib/polymarket";
 import { FREE_DELAY_MINUTES } from "../src/lib/server/session";
 import { escapeHtml, pollUpdates, sendMessage, telegramEnabled } from "./telegram";
 
@@ -169,7 +169,7 @@ async function handleBet(bet: PendingBet) {
     }
   }
   const name = displayName(followers[0].bettor.name, followers[0].bettor.pseudonym, bet.wallet);
-  log(`[bet] ${name} ${bet.side} ${bet.outcome} @ ${Math.round(price * 100)}¢ ${formatUsd(bet.usd)} · ${bet.title} → ${queued} alert(s)`);
+  log(`[bet] ${name} ${bet.side} ${bet.outcome} @ ${formatOdds(price)} ${formatUsd(bet.usd)} · ${bet.title} → ${queued} alert(s)`);
 }
 
 function connectRealtime() {
@@ -218,7 +218,7 @@ async function sendDue() {
     }
     if (Date.now() - (lastSentToChat.get(chat) ?? 0) < 1050) continue; // ~1 msg/s per chat
     const html = await formatAlert(a);
-    const buttons = [[{ text: "Open on Polymarket", url: polymarketEventUrl(a.eventSlug) }, { text: "Their profile", url: `${APP_URL}/app/bettor/${a.bettorId}` }]];
+    const buttons = [[{ text: "Their record", url: `${APP_URL}/app/bettor/${a.bettorId}` }]];
     try {
       if (telegramEnabled) await sendMessage(chat, html, buttons);
       else log(`[dry-run → ${chat}]\n${html.replace(/<[^>]+>/g, "")}`);
@@ -252,7 +252,7 @@ async function formatAlert(a: { bettorId: string; side: string; title: string; o
   const lines = [
     `${a.side === "BUY" ? "🟢" : "🔴"} <b>${a.side === "BUY" ? "New bet" : "Sold"} · ${name}</b>`,
     `${escapeHtml(cls ? leagueLabel(cls.league) : "")} · ${escapeHtml(a.title)}${startsIn(ev.start)}`,
-    `<b>${verb} ${escapeHtml(a.outcome)} @ ${Math.round(a.price * 100)}¢ · ${formatUsd(a.usdSize, false)}</b>`,
+    `<b>${verb} ${escapeHtml(a.outcome)} @ ${formatOdds(a.price)} · ${formatUsd(a.usdSize, false)}</b>`,
   ];
   if (record) lines.push(escapeHtml(record));
   if (a.user.plan !== "pro") {

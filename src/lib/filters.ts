@@ -196,3 +196,9 @@ export function describeFilter(f: BettorFilter, sportLabelOf: (k: string) => str
   if (opts.includeTimeframe) out.push(TIMEFRAMES.find((t) => t.key === f.timeframe)!.long);
   return out;
 }
+
+/** Price of a winning outcome (0–1) as decimal betting odds, e.g. 0.42 -> "2.38". */
+export function formatOdds(price: number): string {
+  if (!(price > 0) || price >= 1) return "—";
+  return (1 / price).toFixed(2);
+}

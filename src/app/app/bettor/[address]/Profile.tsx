@@ -10,9 +10,8 @@ import { Button } from "@/components/ui/Button";
 import { SportIcon } from "@/components/SportIcon";
 import { FollowSheet } from "@/components/app/FollowSheet";
 import { useFollowing } from "@/components/app/MeProvider";
-import { type BettorStats, type TimingKey, TIMEFRAMES, TIMINGS, describeFilter, filterToParams, formatLead, formatPct, formatUsd, paramsToFilter } from "@/lib/filters";
+import { type BettorStats, type TimingKey, TIMEFRAMES, TIMINGS, describeFilter, filterToParams, formatLead, formatOdds, formatPct, formatUsd, paramsToFilter } from "@/lib/filters";
 import { leagueLabel, sportLabel } from "@/lib/sports";
-import { polymarketEventUrl, polymarketProfileUrl, shortAddress } from "@/lib/polymarket";
 import type { BettorProfile } from "@/lib/server/stats";
 
 type Data = BettorProfile;
@@ -79,19 +78,13 @@ export function Profile({ address }: { address: string }) {
         <Avatar address={data.bettor.address} src={data.bettor.profileImage} name={data.bettor.name} size={72} />
         <div className="min-w-0">
           <h1 className="title truncate text-[28px] leading-tight">{data.bettor.name}</h1>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[14px] text-ink-3">
-            <CopyAddress address={data.bettor.address} />
-            <a href={polymarketProfileUrl(data.bettor.address)} target="_blank" rel="noreferrer" className="font-semibold text-brand">
-              Polymarket ↗
-            </a>
-          </div>
           <div className="mt-1.5 text-[14px] font-medium text-ink-2">
             <span className="num font-semibold text-ink">{data.followers}</span> copying on CopyBet
           </div>
         </div>
       </motion.div>
 
-      {data.bettor.isMarketMaker && <div className="mt-4 rounded-2xl bg-loss-soft px-4 py-3 text-[14px] text-loss">This wallet bets both sides of many markets, like a market maker. Its record may not be worth copying.</div>}
+      {data.bettor.isMarketMaker && <div className="mt-4 rounded-2xl bg-loss-soft px-4 py-3 text-[14px] text-loss">This bettor often bets both sides of the same game, so their record may not be worth copying.</div>}
 
       {/* Timeframe */}
       <div className="mt-6">
@@ -310,14 +303,14 @@ function PositionsBlock({ positions, total }: { positions: Data["positions"]; to
       ) : (
         <div className="overflow-hidden rounded-[22px] bg-surface">
           {list.map((p, i) => (
-            <a key={p.id} href={polymarketEventUrl(p.eventSlug)} target="_blank" rel="noreferrer" className={clsx("flex items-center gap-3 p-4 active:bg-surface-2", i > 0 && "border-t border-line")}>
+            <div key={p.id} className={clsx("flex items-center gap-3 p-4", i > 0 && "border-t border-line")}>
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-surface-2">
                 <SportIcon sport={p.sport} size={20} />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[15px] font-semibold">{p.title}</span>
                 <span className="block truncate text-[13px] text-ink-3">
-                  {leagueLabel(p.league)} · {p.outcome} @ {Math.round(p.avgPrice * 100)}¢{p.gameStartAt ? ` · ${gameTime(p.gameStartAt)}` : ""}
+                  {leagueLabel(p.league)} · {p.outcome} @ {formatOdds(p.avgPrice)}{p.gameStartAt ? ` · ${gameTime(p.gameStartAt)}` : ""}
                 </span>
               </span>
               <span className="text-right">
@@ -327,7 +320,7 @@ function PositionsBlock({ positions, total }: { positions: Data["positions"]; to
                   {formatUsd(p.pnl)}
                 </span>
               </span>
-            </a>
+            </div>
           ))}
         </div>
       )}
@@ -375,22 +368,6 @@ function gameTime(iso: string) {
 
 function EmptyCard({ text }: { text: string }) {
   return <div className="rounded-[22px] bg-surface p-5 text-[15px] text-ink-3">{text}</div>;
-}
-
-function CopyAddress({ address }: { address: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      onClick={() => {
-        navigator.clipboard?.writeText(address);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1400);
-      }}
-      className="num font-medium"
-    >
-      {copied ? "Copied" : shortAddress(address)}
-    </button>
-  );
 }
 
 function ShareButton({ name }: { name: string }) {

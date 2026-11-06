@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { bettorStats, landingStats } from "./stats";
-import type { HeroAlert } from "@/components/landing/AlertPhone";
+import type { PhoneAlert, PhoneBettor } from "@/components/landing/HeroPhone";
 
 export interface CompareExample {
   name: string;
@@ -16,7 +16,7 @@ export interface LandingData {
   tracked: number;
   perSport: Record<string, { bettors: number; bets: number; best: number }>;
   topProfit30d: number | null;
-  alerts: HeroAlert[];
+  phone: { bettors: PhoneBettor[]; alert: PhoneAlert | null };
   compare: CompareExample | null;
 }
 
@@ -27,11 +27,11 @@ export async function getLandingData(): Promise<LandingData> {
   if (cache && Date.now() - cache.at < 5 * 60_000) return cache.data;
   try {
     const { tracked, perSport, top } = await landingStats();
-    const alerts: HeroAlert[] = [];
+    const alerts: PhoneAlert[] = [];
     let compare: CompareExample | null = null;
     for (const b of top) {
       const pos = await db.openPosition.findMany({ where: { bettorId: b.address, avgPrice: { gt: 0.05, lt: 0.95 } }, orderBy: { entryAt: "desc" }, take: 2 });
-      for (const p of pos) alerts.push({ name: b.name, league: p.league, title: p.title, outcome: p.outcome, price: p.avgPrice, usd: p.cost, roi: b.roi });
+      for (const p of pos) alerts.push({ league: p.league, title: p.title, outcome: p.outcome, price: p.avgPrice, usd: p.cost });
       // A bettor whose best sport looks very different from the rest of their record.
       const all = await bettorStats(b.address, { sports: [], timing: [], timeframe: "all" });
       const best = all.sports.filter((s) => s.bets >= 20).sort((a, z) => z.roi - a.roi)[0];
@@ -40,15 +40,21 @@ export async function getLandingData(): Promise<LandingData> {
         const restStaked = all.staked - best.staked;
         const restRoi = restStaked > 0 ? (100 * (all.profit - best.profit)) / restStaked : 0;
         const gap = best.roi - restRoi;
-        if (restBets >= 20 && gap > 10 && (!compare || gap > compare.sportRoi - compare.otherRoi)) {
+        if (restBets >= 20 && all.roi > 8 && best.roi >= 15 && gap > 10 && (!compare || gap > compare.sportRoi - compare.otherRoi)) {
           compare = { name: b.name, address: b.address, sport: best.sport, sportRoi: best.roi, sportBets: best.bets, otherRoi: restRoi, otherBets: restBets };
         }
       }
     }
-    const data: LandingData = { tracked, perSport, topProfit30d: top[0]?.profit ?? null, alerts: alerts.slice(0, 8), compare };
+    // The phone demo follows the bettor of the "real example" when there is one, else this month's #1.
+    const star = (compare && top.find((b) => b.address === compare!.address)) ?? top[0];
+    const ordered = star ? [star, ...top.filter((b) => b !== star)] : top;
+    const phoneBettors: PhoneBettor[] = ordered.slice(0, 4).map((b) => ({ address: b.address, name: b.name, profileImage: b.profileImage, roi: b.roi, profit: b.profit, winRate: b.winRate, bets: b.bets, sport: b === star && compare ? compare.sport : (b.topSports[0]?.sport ?? "other") }));
+    const starAlert = star ? await db.openPosition.findFirst({ where: { bettorId: star.address, avgPrice: { gt: 0.2, lt: 0.8 } }, orderBy: { entryAt: "desc" } }) : null;
+    const alert: PhoneAlert | null = starAlert ? { league: starAlert.league, title: starAlert.title, outcome: starAlert.outcome, price: starAlert.avgPrice, usd: starAlert.cost } : (alerts[0] ?? null);
+    const data: LandingData = { tracked, perSport, topProfit30d: top[0]?.profit ?? null, phone: { bettors: phoneBettors, alert }, compare };
     cache = { at: Date.now(), data };
     return data;
   } catch {
-    return { tracked: 0, perSport: {}, topProfit30d: null, alerts: [], compare: null };
+    return { tracked: 0, perSport: {}, topProfit30d: null, phone: { bettors: [], alert: null }, compare: null };
   }
 }
