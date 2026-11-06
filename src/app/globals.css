@@ -1,0 +1,137 @@
+@import "tailwindcss";
+@import "@fontsource-variable/figtree";
+
+/* ─────────────────────────────────────────────────────────────
+   CopyBet design tokens.
+   Layout language inspired by modern wallet apps: soft pastel canvas,
+   floating pill navigation, big tight headlines, 24–32px rounded cards,
+   pill buttons, one signature ease. Colours are CopyBet's own.
+   ───────────────────────────────────────────────────────────── */
+:root {
+  --bg: #f4f6ff;
+  --surface: #ffffff;
+  --surface-2: #ebeffd;
+  --surface-3: #dfe5fb;
+  --line: #e1e6f7;
+  --ink: #10173a;
+  --ink-2: #545c80;
+  --ink-3: #8a91ad;
+  --brand: #3a5bff;
+  --brand-2: #2c47e0;
+  --brand-soft: #dce3ff;
+  --lime: #d4ff4f;
+  --win: #0fa968;
+  --win-soft: #dbf6e9;
+  --loss: #e8435f;
+  --loss-soft: #fde3e8;
+  --night: #0b0f26;
+  --night-2: #151a37;
+  --night-3: #222849;
+  --night-ink: #f6f7ff;
+  --night-ink-2: #a3a9c7;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  color-scheme: light;
+}
+
+/* The app (not the landing page) follows the phone's dark mode. */
+@media (prefers-color-scheme: dark) {
+  .app-theme {
+    --bg: #0b0f26;
+    --surface: #151a37;
+    --surface-2: #1d2346;
+    --surface-3: #283058;
+    --line: #262d52;
+    --ink: #f3f5ff;
+    --ink-2: #aab0cf;
+    --ink-3: #737a9c;
+    --brand-soft: #232d66;
+    --win: #2fd38b;
+    --win-soft: #12382a;
+    --loss: #ff6b84;
+    --loss-soft: #3d1825;
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-brand: var(--brand);
+  --color-brand-2: var(--brand-2);
+  --color-brand-soft: var(--brand-soft);
+  --color-lime: var(--lime);
+  --color-win: var(--win);
+  --color-win-soft: var(--win-soft);
+  --color-loss: var(--loss);
+  --color-loss-soft: var(--loss-soft);
+  --color-night: var(--night);
+  --color-night-2: var(--night-2);
+  --color-night-3: var(--night-3);
+  --color-night-ink: var(--night-ink);
+  --color-night-ink-2: var(--night-ink-2);
+  --font-sans: "Figtree Variable", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --ease-brand: var(--ease);
+  --radius-pill: 999px;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Big, tight display type */
+.display {
+  font-weight: 560;
+  letter-spacing: -0.035em;
+  line-height: 0.98;
+}
+.title {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Press feedback everywhere */
+.press {
+  transition: transform 0.4s var(--ease), background-color 0.4s var(--ease), color 0.4s var(--ease), box-shadow 0.4s var(--ease);
+}
+.press:active {
+  transform: scale(0.97);
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.safe-bottom {
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

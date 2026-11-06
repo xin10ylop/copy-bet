@@ -1,0 +1,10 @@
+{
+  "name": "CopyBet",
+  "short_name": "CopyBet",
+  "description": "Follow the best sports bettors. Get their bets instantly.",
+  "start_url": "/app",
+  "display": "standalone",
+  "background_color": "#f4f6ff",
+  "theme_color": "#3a5bff",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

@@ -1,0 +1,164 @@
+// CopyBet data model.
+// SQLite for local development. For production switch `provider` to "postgresql"
+// and point DATABASE_URL at your Postgres instance — the schema is portable.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// A Polymarket sports bettor (proxy wallet) we track.
+model Bettor {
+  address        String   @id // lowercase 0x… proxy wallet
+  name           String?
+  pseudonym      String?
+  profileImage   String?
+  xUsername      String?
+  verified       Boolean  @default(false)
+  /// Market makers / two-sided bots are hidden from rankings.
+  isMarketMaker  Boolean  @default(false)
+  lbPnlMonth     Float?
+  lbPnlAll       Float?
+  lbVolumeAll    Float?
+  lastIndexedAt  DateTime?
+  createdAt      DateTime @default(now())
+
+  bets      SettledBet[]
+  positions OpenPosition[]
+  follows   Follow[]
+}
+
+/// One settled bet = one market outcome the bettor bought, now resolved or sold.
+model SettledBet {
+  id          String   @id // bettor:condition:outcomeIndex
+  bettorId    String
+  sport       String // sport group key, e.g. "basketball"
+  league      String // league code, e.g. "nba"
+  eventSlug   String
+  title       String
+  outcome     String
+  cost        Float // USD staked
+  pnl         Float // USD profit (negative = loss)
+  entryAt     DateTime
+  settledAt   DateTime
+  /// epoch seconds copy of settledAt, used by raw aggregate queries
+  settledTs   Int
+  gameStartAt DateTime?
+  leadMinutes Int? // minutes between first entry and game start (negative = in-game)
+  timing      String // early | day | late | live | futures
+  icon        String?
+
+  bettor Bettor @relation(fields: [bettorId], references: [address], onDelete: Cascade)
+
+  @@index([bettorId, settledTs])
+  @@index([sport, settledTs])
+}
+
+model OpenPosition {
+  id           String    @id // bettor:token
+  bettorId     String
+  sport        String
+  league       String
+  eventSlug    String
+  title        String
+  outcome      String
+  size         Float
+  avgPrice     Float
+  cost         Float
+  currentValue Float
+  pnl          Float
+  entryAt      DateTime
+  gameStartAt  DateTime?
+  timing       String
+  icon         String?
+
+  bettor Bettor @relation(fields: [bettorId], references: [address], onDelete: Cascade)
+
+  @@index([bettorId])
+}
+
+/// Cached Gamma event metadata (game start time, sport).
+model EventMeta {
+  slug        String    @id
+  title       String?
+  league      String?
+  isGame      Boolean   @default(false)
+  startTime   DateTime?
+  fetchedAt   DateTime  @default(now())
+}
+
+model User {
+  id               String    @id @default(cuid())
+  createdAt        DateTime  @default(now())
+  plan             String    @default("free") // free | pro
+  telegramChatId   String?   @unique
+  telegramUsername String?
+  telegramName     String?
+  linkToken        String    @unique @default(cuid())
+  /// Answers from onboarding bucket questions.
+  goal             String?
+  favoriteSport    String?
+
+  follows  Follow[]
+  searches SavedSearch[]
+  alerts   AlertLog[]
+}
+
+/// A bettor in a user's portfolio, plus which of their bets to alert on.
+model Follow {
+  id           String    @id @default(cuid())
+  userId       String
+  bettorId     String
+  /// "all" = every bet, "custom" = only bets matching the rules below.
+  mode         String    @default("all")
+  sports       String    @default("[]") // JSON array of sport keys
+  timing       String    @default("[]") // JSON array of timing keys
+  minSize      Float     @default(0) // USD
+  includeSells Boolean   @default(false)
+  mutedUntil   DateTime?
+  createdAt    DateTime  @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bettor Bettor @relation(fields: [bettorId], references: [address], onDelete: Cascade)
+
+  @@unique([userId, bettorId])
+  @@index([bettorId])
+}
+
+model SavedSearch {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  filter    String // JSON BettorFilter
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Every bet we detected from a followed bettor, and who we told.
+model AlertLog {
+  id        String   @id @default(cuid())
+  userId    String
+  bettorId  String
+  txHash    String
+  title     String
+  outcome   String
+  side      String
+  price     Float
+  usdSize   Float
+  eventSlug String
+  sport     String?
+  detectedAt DateTime @default(now())
+  sendAt    DateTime // free plan sends later
+  sentAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, bettorId, txHash, outcome, side])
+  @@index([sentAt, sendAt])
+  @@index([userId, detectedAt])
+}
