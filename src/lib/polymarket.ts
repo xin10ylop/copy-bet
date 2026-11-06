@@ -126,17 +126,22 @@ export function trades(user: string, max = 50) {
   return paginate<Trade>("/trades", { user, limit: Math.min(max, 500) }, max);
 }
 
-export async function gammaEvents(slugs: string[]): Promise<GammaEvent[]> {
+export async function gammaEvents(slugs: string[], concurrency = 4): Promise<GammaEvent[]> {
+  const chunks: string[][] = [];
+  for (let i = 0; i < slugs.length; i += 40) chunks.push(slugs.slice(i, i + 40));
   const out: GammaEvent[] = [];
-  for (let i = 0; i < slugs.length; i += 40) {
-    const chunk = slugs.slice(i, i + 40);
-    const q = chunk.map((s) => `slug=${encodeURIComponent(s)}`).join("&");
-    try {
-      out.push(...(await getJson<GammaEvent[]>(`${GAMMA}/events?${q}&limit=${chunk.length}`)));
-    } catch {
-      // one bad chunk shouldn't stop indexing
-    }
-  }
+  await Promise.all(
+    Array.from({ length: concurrency }, async () => {
+      for (let chunk = chunks.shift(); chunk; chunk = chunks.shift()) {
+        const q = chunk.map((s) => `slug=${encodeURIComponent(s)}`).join("&");
+        try {
+          out.push(...(await getJson<GammaEvent[]>(`${GAMMA}/events?${q}&limit=${chunk.length}`)));
+        } catch {
+          // one bad chunk shouldn't stop indexing
+        }
+      }
+    }),
+  );
   return out;
 }
 

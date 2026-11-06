@@ -13,25 +13,42 @@ async function eventMeta(slugs: string[]) {
   const known = await db.eventMeta.findMany({ where: { slug: { in: unique } } });
   const map = new Map(known.map((e) => [e.slug, e]));
   // Re-check game events that had no start time yet, at most once an hour.
-  const stale = (e: (typeof known)[number]) => !e.startTime && Date.now() - e.fetchedAt.getTime() > 3600_000;
+  const stale = (e: (typeof known)[number]) => e.isGame && !e.startTime && Date.now() - e.fetchedAt.getTime() > 3600_000;
   const missing = unique.filter((s) => !map.has(s) || stale(map.get(s)!));
   if (missing.length) {
     const events = await pm.gammaEvents(missing);
-    for (const e of events) {
-      const isGame = (e.tags ?? []).some((t) => t.slug === "games");
-      const row = {
-        slug: e.slug,
-        title: e.title,
-        isGame,
-        startTime: e.startTime ? new Date(e.startTime) : null,
-        league: classifyEvent(e.slug, e.title)?.league ?? null,
-        fetchedAt: new Date(),
-      };
-      const saved = await db.eventMeta.upsert({ where: { slug: e.slug }, create: row, update: row });
-      map.set(e.slug, saved);
-    }
+    const rows = events.map((e) => ({
+      slug: e.slug,
+      title: e.title ?? null,
+      isGame: (e.tags ?? []).some((t) => t.slug === "games"),
+      startTime: e.startTime ? new Date(e.startTime) : null,
+      league: classifyEvent(e.slug, e.title)?.league ?? null,
+      fetchedAt: new Date(),
+    }));
+    for (const r of rows) map.set(r.slug, r);
+    await upsertEvents(rows);
   }
   return map;
+}
+
+/** Bulk upsert in a few round trips (one query per 500 events), not one per event. */
+async function upsertEvents(rows: { slug: string; title: string | null; isGame: boolean; startTime: Date | null; league: string | null; fetchedAt: Date }[]) {
+  const unique = [...new Map(rows.map((r) => [r.slug, r])).values()];
+  for (let i = 0; i < unique.length; i += 500) {
+    const chunk = unique.slice(i, i + 500);
+    const values: unknown[] = [];
+    const tuples = chunk.map((r) => {
+      const n = values.length;
+      values.push(r.slug, r.title, r.league, r.isGame, r.startTime, r.fetchedAt);
+      return `($${n + 1}, $${n + 2}, $${n + 3}, $${n + 4}, $${n + 5}, $${n + 6})`;
+    });
+    await db.$executeRawUnsafe(
+      `INSERT INTO "EventMeta" ("slug", "title", "league", "isGame", "startTime", "fetchedAt") VALUES ${tuples.join(",")}
+       ON CONFLICT ("slug") DO UPDATE SET "title" = EXCLUDED."title", "league" = EXCLUDED."league", "isGame" = EXCLUDED."isGame",
+         "startTime" = EXCLUDED."startTime", "fetchedAt" = EXCLUDED."fetchedAt"`,
+      ...values,
+    );
+  }
 }
 
 export interface IndexHint {
