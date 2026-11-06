@@ -14,14 +14,22 @@ Follow the best sports bettors on Polymarket. See their real record by sport, an
 
 ## Quick start
 
+Needs Node 20+ and a Postgres database (local, or a free Neon database).
+
 ```bash
 npm install
-cp .env.example .env
-npm run db:push          # create the local SQLite database
+cp .env.example .env     # then set DATABASE_URL / DATABASE_URL_UNPOOLED
+npm run db:push          # apply migrations
 npm run index            # index the Polymarket sports leaderboards (~300 bettors, 10–20 min)
 npm run dev              # web app on http://localhost:3000
 npm run worker           # realtime alerts + Telegram bot (separate terminal)
 ```
+
+## Deploying
+
+**Web app → Vercel.** Import the repo, add a Neon Postgres database from the project's Storage tab (it sets `DATABASE_URL` and `DATABASE_URL_UNPOOLED`), and set `CRON_SECRET`, `APP_URL` and later `TELEGRAM_BOT_USERNAME`. The `vercel-build` script runs migrations, then `next build`. Bettor data is refreshed by `/api/cron/index` (daily via `vercel.json`, or call it with `?key=$CRON_SECRET`; each call works for ~4.5 minutes).
+
+**Worker → any always-on host** (Railway, Render, Fly.io…). Vercel can't keep the live WebSocket open. Start command `npm run worker`, with the same `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `APP_URL`, plus `TELEGRAM_BOT_TOKEN`. The worker also re-indexes leaderboards hourly.
 
 Telegram: create a bot with [@BotFather](https://t.me/BotFather), then set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_BOT_USERNAME` in `.env`. Without a token the worker runs in **dry-run** mode and prints alerts to the console.
 
@@ -48,8 +56,7 @@ Polymarket RTDS (wss, live trades) ──► worker ──► follow rules ─�
 
 ## Production notes
 
-- Switch Prisma to Postgres (`provider = "postgresql"`). The raw stats SQL uses SQLite's scalar `MAX(a, b)`; on Postgres use `GREATEST(a, b)`.
-- Run the web app and the worker as separate always-on processes; the worker also re-indexes leaderboards hourly and followed bettors every 15 minutes.
+- Run the web app and the worker as separate processes; the worker also re-indexes leaderboards hourly and followed bettors every 15 minutes.
 - Payments aren't wired yet: set `NEXT_PUBLIC_PRO_CHECKOUT_URL` (e.g. a Stripe Payment Link) and add a webhook that sets `User.plan = "pro"` using `client_reference_id`.
 - Pricing ($29/mo), the free tier (3 follows, 10-minute delay) and the $1,000 minimum stake are placeholders to tune.
 - CopyBet is not affiliated with Polymarket. Keep the disclaimers (no guaranteed results, 18+, legal where you live).

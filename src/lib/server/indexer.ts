@@ -188,8 +188,10 @@ export async function ensureIndexed(address: string, maxAgeMs = 30 * 60_000) {
 }
 
 /** Index the sports leaderboards. Run on a schedule by the worker (and `npm run index`). */
-export async function indexLeaderboards(opts: { perBoard?: number; concurrency?: number; maxAgeMs?: number; log?: (s: string) => void } = {}) {
-  const { perBoard = 200, concurrency = 4, maxAgeMs = 60 * 60_000, log = () => {} } = opts;
+export async function indexLeaderboards(
+  opts: { perBoard?: number; concurrency?: number; maxAgeMs?: number; log?: (s: string) => void; /** stop starting new bettors after this time (epoch ms) */ deadline?: number; maxBettors?: number } = {},
+) {
+  const { perBoard = 200, concurrency = 4, maxAgeMs = 60 * 60_000, log = () => {}, deadline = Infinity, maxBettors = Infinity } = opts;
   const [month, week, all, vol] = await Promise.all([
     pm.sportsLeaderboard("month", "PNL", perBoard),
     pm.sportsLeaderboard("week", "PNL", Math.ceil(perBoard / 2)),
@@ -216,12 +218,13 @@ export async function indexLeaderboards(opts: { perBoard?: number; concurrency?:
   const fresh = new Set(
     (await db.bettor.findMany({ where: { lastIndexedAt: { gte: new Date(Date.now() - maxAgeMs) } }, select: { address: true } })).map((b) => b.address),
   );
-  const queue = [...hints.entries()].filter(([a]) => !fresh.has(a));
-  log(`leaderboards: ${hints.size} bettors, ${queue.length} to index`);
+  const stale = [...hints.entries()].filter(([a]) => !fresh.has(a));
+  const queue = stale.slice(0, maxBettors);
+  log(`leaderboards: ${hints.size} bettors, ${stale.length} to index`);
   let done = 0;
   await Promise.all(
     Array.from({ length: concurrency }, async () => {
-      for (let item = queue.shift(); item; item = queue.shift()) {
+      for (let item = queue.shift(); item && Date.now() < deadline; item = queue.shift()) {
         const [address, hint] = item;
         try {
           const r = await indexBettor(address, hint);
@@ -232,4 +235,5 @@ export async function indexLeaderboards(opts: { perBoard?: number; concurrency?:
       }
     }),
   );
+  return { total: hints.size, stale: stale.length, indexed: done };
 }

@@ -3,6 +3,8 @@ import { db } from "@/lib/server/db";
 import { FREE_FOLLOW_LIMIT, requireUser, getUser } from "@/lib/server/session";
 import { ensureIndexed } from "@/lib/server/indexer";
 
+export const maxDuration = 60;
+
 const Body = z.object({
   address: z.string().regex(/^0x[0-9a-fA-F]{40}$/),
   mode: z.enum(["all", "custom"]),

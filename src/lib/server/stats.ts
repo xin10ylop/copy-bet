@@ -24,46 +24,45 @@ export interface BettorRow {
   topSports: { sport: string; share: number }[];
 }
 
-function betWhere(f: Pick<BettorFilter, "sports" | "timing" | "timeframe">, alias = "s") {
+/** Collects positional parameters for Postgres ($1, $2, …). */
+class Params {
+  values: unknown[] = [];
+  add(v: unknown) {
+    this.values.push(v);
+    return `$${this.values.length}`;
+  }
+  list(vs: unknown[]) {
+    return vs.map((v) => this.add(v)).join(",");
+  }
+}
+
+function betWhere(f: Pick<BettorFilter, "sports" | "timing" | "timeframe">, p: Params, alias = "s") {
   const clauses: string[] = [];
-  const params: unknown[] = [];
   const since = timeframeSince(f.timeframe);
-  if (since) {
-    clauses.push(`${alias}."settledTs" >= ?`);
-    params.push(Math.floor(since.getTime() / 1000));
-  }
-  if (f.sports.length) {
-    clauses.push(`${alias}."sport" IN (${f.sports.map(() => "?").join(",")})`);
-    params.push(...f.sports);
-  }
-  if (f.timing.length) {
-    clauses.push(`${alias}."timing" IN (${f.timing.map(() => "?").join(",")})`);
-    params.push(...f.timing);
-  }
-  return { sql: clauses.length ? clauses.join(" AND ") : "1=1", params };
+  if (since) clauses.push(`${alias}."settledTs" >= ${p.add(Math.floor(since.getTime() / 1000))}`);
+  if (f.sports.length) clauses.push(`${alias}."sport" IN (${p.list(f.sports)})`);
+  if (f.timing.length) clauses.push(`${alias}."timing" IN (${p.list(f.timing)})`);
+  return clauses.length ? clauses.join(" AND ") : "TRUE";
 }
 
 const SORT_SQL: Record<BettorFilter["sort"], string> = {
-  roi: "roi DESC",
-  profit: "profit DESC",
-  winRate: "winRate DESC",
-  followers: "followers DESC, profit DESC",
-  bets: "bets DESC",
+  roi: `"roi" DESC`,
+  profit: `"profit" DESC`,
+  winRate: `"winRate" DESC`,
+  followers: `"followers" DESC, "profit" DESC`,
+  bets: `"bets" DESC`,
 };
 
 export async function listBettors(f: BettorFilter, limit = 30, offset = 0): Promise<{ rows: BettorRow[]; total: number }> {
-  const where = betWhere(f);
-  const having: string[] = [];
-  const hp: unknown[] = [];
-  const range = (expr: string, r: { min?: number; max?: number }) => {
-    if (r.min !== undefined) {
-      having.push(`${expr} >= ?`);
-      hp.push(r.min);
-    }
-    if (r.max !== undefined) {
-      having.push(`${expr} <= ?`);
-      hp.push(r.max);
-    }
+  const p = new Params();
+  const openSports = f.sports.length ? `AND o."sport" IN (${p.list(f.sports)})` : "";
+  const where = betWhere(f, p);
+
+  // Filters on aggregates go in an outer WHERE so they can use the column names.
+  const outer: string[] = [];
+  const range = (col: string, r: { min?: number; max?: number }) => {
+    if (r.min !== undefined) outer.push(`"${col}" >= ${p.add(r.min)}`);
+    if (r.max !== undefined) outer.push(`"${col}" <= ${p.add(r.max)}`);
   };
   range("roi", f.roi);
   range("winRate", f.winRate);
@@ -72,28 +71,31 @@ export async function listBettors(f: BettorFilter, limit = 30, offset = 0): Prom
   // Ignore dust: tiny stakes make ROI meaningless.
   range("staked", { min: MIN_STAKED });
   range("followers", f.followers);
-  if (f.hasOpen) having.push("openCount > 0");
+  if (f.hasOpen) outer.push(`"openCount" > 0`);
 
-  const openSports = f.sports.length ? `AND o."sport" IN (${f.sports.map(() => "?").join(",")})` : "";
   const base = `
-    SELECT b."address" AS address, b."name" AS name, b."pseudonym" AS pseudonym, b."profileImage" AS profileImage, b."verified" AS verified,
-      COUNT(s."id") AS bets,
-      SUM(CASE WHEN s."pnl" > 0 THEN 1 ELSE 0 END) AS wins,
-      SUM(s."cost") AS staked,
-      SUM(s."pnl") AS profit,
-      100.0 * SUM(s."pnl") / MAX(SUM(s."cost"), 1) AS roi,
-      100.0 * SUM(CASE WHEN s."pnl" > 0 THEN 1 ELSE 0 END) / COUNT(s."id") AS winRate,
-      (SELECT COUNT(*) FROM "Follow" fo WHERE fo."bettorId" = b."address") AS followers,
-      (SELECT COUNT(*) FROM "OpenPosition" o WHERE o."bettorId" = b."address" ${openSports}) AS openCount
-    FROM "Bettor" b JOIN "SettledBet" s ON s."bettorId" = b."address"
-    WHERE b."isMarketMaker" = false AND ${where.sql}
-    GROUP BY b."address"
-    ${having.length ? `HAVING ${having.join(" AND ")}` : ""}`;
-  const params = [...f.sports, ...where.params, ...hp];
+    SELECT * FROM (
+      SELECT b."address" AS "address", b."name" AS "name", b."pseudonym" AS "pseudonym", b."profileImage" AS "profileImage", b."verified" AS "verified",
+        COUNT(s."id")::int AS "bets",
+        SUM(CASE WHEN s."pnl" > 0 THEN 1 ELSE 0 END)::int AS "wins",
+        SUM(s."cost")::float8 AS "staked",
+        SUM(s."pnl")::float8 AS "profit",
+        (100.0 * SUM(s."pnl") / GREATEST(SUM(s."cost"), 1))::float8 AS "roi",
+        (100.0 * SUM(CASE WHEN s."pnl" > 0 THEN 1 ELSE 0 END) / COUNT(s."id"))::float8 AS "winRate",
+        (SELECT COUNT(*) FROM "Follow" fo WHERE fo."bettorId" = b."address")::int AS "followers",
+        (SELECT COUNT(*) FROM "OpenPosition" o WHERE o."bettorId" = b."address" ${openSports})::int AS "openCount"
+      FROM "Bettor" b JOIN "SettledBet" s ON s."bettorId" = b."address"
+      WHERE b."isMarketMaker" = false AND ${where}
+      GROUP BY b."address"
+    ) t
+    ${outer.length ? `WHERE ${outer.join(" AND ")}` : ""}`;
 
+  const countParams = [...p.values];
+  const lim = p.add(limit);
+  const off = p.add(offset);
   const [rows, count] = await Promise.all([
-    db.$queryRawUnsafe<Record<string, unknown>[]>(`${base} ORDER BY ${SORT_SQL[f.sort]} LIMIT ? OFFSET ?`, ...params, limit, offset),
-    db.$queryRawUnsafe<{ n: number | bigint }[]>(`SELECT COUNT(*) AS n FROM (${base}) t`, ...params),
+    db.$queryRawUnsafe<Record<string, unknown>[]>(`${base} ORDER BY ${SORT_SQL[f.sort]} LIMIT ${lim} OFFSET ${off}`, ...p.values),
+    db.$queryRawUnsafe<{ n: number }[]>(`SELECT COUNT(*)::int AS "n" FROM (${base}) c`, ...countParams),
   ]);
 
   const addresses = rows.map((r) => String(r.address));
@@ -121,13 +123,14 @@ export async function listBettors(f: BettorFilter, limit = 30, offset = 0): Prom
 
 /** Each bettor's sport mix over the timeframe (ignores the sport filter on purpose). */
 async function sportMix(addresses: string[], f: BettorFilter) {
-  const where = betWhere({ sports: [], timing: [], timeframe: f.timeframe });
-  const rows = await db.$queryRawUnsafe<{ bettorId: string; sport: string; n: number | bigint }[]>(
-    `SELECT s."bettorId" AS bettorId, s."sport" AS sport, COUNT(*) AS n FROM "SettledBet" s
-     WHERE s."bettorId" IN (${addresses.map(() => "?").join(",")}) AND ${where.sql}
+  const p = new Params();
+  const inList = p.list(addresses);
+  const where = betWhere({ sports: [], timing: [], timeframe: f.timeframe }, p);
+  const rows = await db.$queryRawUnsafe<{ bettorId: string; sport: string; n: number }[]>(
+    `SELECT s."bettorId" AS "bettorId", s."sport" AS "sport", COUNT(*)::int AS "n" FROM "SettledBet" s
+     WHERE s."bettorId" IN (${inList}) AND ${where}
      GROUP BY s."bettorId", s."sport"`,
-    ...addresses,
-    ...where.params,
+    ...p.values,
   );
   const out = new Map<string, { sport: string; share: number }[]>();
   const totals = new Map<string, number>();
@@ -238,11 +241,11 @@ export async function landingStats() {
   const since30 = Math.floor((Date.now() - 30 * 86400_000) / 1000);
   const [tracked, perSport, top] = await Promise.all([
     db.bettor.count({ where: { isMarketMaker: false } }),
-    db.$queryRawUnsafe<{ sport: string; bettors: number | bigint; bets: number | bigint; best: number }[]>(
-      `SELECT sport, COUNT(DISTINCT bettorId) AS bettors, SUM(n) AS bets, MAX(p) AS best FROM (
-         SELECT s."sport" AS sport, s."bettorId" AS bettorId, COUNT(*) AS n, SUM(s."pnl") AS p FROM "SettledBet" s
+    db.$queryRawUnsafe<{ sport: string; bettors: number; bets: number; best: number }[]>(
+      `SELECT "sport", COUNT(DISTINCT "bettorId")::int AS "bettors", SUM("n")::int AS "bets", MAX("p")::float8 AS "best" FROM (
+         SELECT s."sport" AS "sport", s."bettorId" AS "bettorId", COUNT(*) AS "n", SUM(s."pnl") AS "p" FROM "SettledBet" s
          JOIN "Bettor" b ON b."address" = s."bettorId" AND b."isMarketMaker" = false
-         WHERE s."settledTs" >= ? GROUP BY s."sport", s."bettorId") GROUP BY sport`,
+         WHERE s."settledTs" >= $1 GROUP BY s."sport", s."bettorId") x GROUP BY "sport"`,
       since30,
     ),
     listBettors({ sports: [], timeframe: "30d", timing: [], roi: {}, winRate: {}, profit: {}, bets: { min: 20 }, followers: {}, hasOpen: false, sort: "profit" }, 6),

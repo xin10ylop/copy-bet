@@ -5,6 +5,8 @@ import { ensureIndexed } from "@/lib/server/indexer";
 import { getUser } from "@/lib/server/session";
 import { db } from "@/lib/server/db";
 
+export const maxDuration = 60;
+
 export async function GET(req: NextRequest, ctx: RouteContext<"/api/bettors/[address]">) {
   const { address: raw } = await ctx.params;
   const address = raw.toLowerCase();

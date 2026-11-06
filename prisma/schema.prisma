@@ -1,14 +1,15 @@
-// CopyBet data model.
-// SQLite for local development. For production switch `provider` to "postgresql"
-// and point DATABASE_URL at your Postgres instance — the schema is portable.
+// CopyBet data model (Postgres).
+// DATABASE_URL: pooled connection (used by the app).
+// DATABASE_URL_UNPOOLED: direct connection (used by migrations). Neon on Vercel sets both.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 /// A Polymarket sports bettor (proxy wallet) we track.
