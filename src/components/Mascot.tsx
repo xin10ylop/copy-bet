@@ -49,7 +49,8 @@ export function Mascot({
 }) {
   const white = variant === "white";
   const body = white ? "#FFFFFF" : "#1652F0";
-  const eyeWhite = white ? "#1652F0" : "#FFFFFF";
+  // On blue backgrounds the body is white, so the eyes are dark with a small white sparkle.
+  const eyeWhite = white ? P : "#FFFFFF";
   // Pale lime nearly disappears on our light background at small sizes (nav logo, icons),
   // so small marks use a slightly stronger tint of the same lime.
   const wash = size <= 44 && !white ? "#DCFA80" : ECHO.washColor;
@@ -78,7 +79,12 @@ export function Mascot({
     return () => window.removeEventListener("pointermove", onMove);
   }, [follow, px, py]);
 
-  const pupils = (
+  const pupils = white ? (
+    <>
+      <circle cx="44" cy="61" r="2.6" fill="#FFFFFF" />
+      <circle cx="66" cy="61" r="2.6" fill="#FFFFFF" />
+    </>
+  ) : (
     <>
       <circle cx="44" cy="62" r="4" fill={P} />
       <circle cx="66" cy="62" r="4" fill={P} />
