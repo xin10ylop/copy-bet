@@ -1,6 +1,10 @@
 import { Nav } from "@/components/landing/Nav";
 import { Ribbons } from "@/components/landing/Ribbons";
 import { HeroPhone } from "@/components/landing/HeroPhone";
+import { Showcase } from "@/components/landing/Showcase";
+import { ArtAlerts, ArtBigWin, ArtFollow, ArtLeaderboard, ArtMarkets, ArtSlip, ArtSplit, ArtSpeed } from "@/components/landing/CardArt";
+import { InlineMascot, Mascot } from "@/components/Mascot";
+import { LeagueMarquee, RisingMascot, RollingNumber, StatStory, WordReveal } from "@/components/landing/ScrollFx";
 import { BucketQuiz } from "@/components/landing/BucketQuiz";
 import { SportGrid } from "@/components/landing/SportGrid";
 import { Faq } from "@/components/landing/Faq";
@@ -20,7 +24,7 @@ function Eyebrow({ children, tone = "white" }: { children: React.ReactNode; tone
 
 function Check({ on = "brand" }: { on?: "brand" | "lime" | "white" }) {
   const bg = on === "lime" ? "bg-lime" : on === "white" ? "bg-white" : "bg-brand-soft";
-  const stroke = on === "brand" ? "#3a5bff" : on === "white" ? "#3a5bff" : "#10173a";
+  const stroke = on === "brand" ? "#1652f0" : on === "white" ? "#1652f0" : "#10173a";
   return (
     <span className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${bg}`}>
       <svg width="10" height="10" viewBox="0 0 16 16" aria-hidden>
@@ -94,6 +98,45 @@ export default async function Landing() {
         </div>
       </section>
 
+      {/* ── Scroll story 1: the feeling. Pinned phrase → deck → cards ── */}
+      <div className="pt-16 sm:pt-24">
+        <Showcase
+          id="how"
+          label="Bet like the best"
+          labelIcon={<Mascot size={22} />}
+          phrase={
+            <>
+              Bet like the <InlineMascot />
+              <br />
+              best in the world.
+            </>
+          }
+          cards={[
+            { title: "Stop guessing. Start copying the bettors who win.", bg: "#1652f0", ink: "#ffffff", art: <ArtLeaderboard bettors={d.phone.bettors} /> },
+            { title: "Know exactly where the money is made.", bg: "#d4ff4f", art: <ArtSplit compare={d.phone.compare} name={d.phone.bettors[0]?.name ?? ""} /> },
+            { title: "Copy only the bets that win.", bg: "#ffffff", art: <ArtFollow /> },
+            { title: "Their winning bet, on your phone, in seconds.", bg: "#ffe2cc", art: <ArtAlerts alert={d.phone.alert} name={d.phone.bettors[0]?.name ?? "A top bettor"} sport={d.phone.compare?.sport ?? d.phone.bettors[0]?.sport ?? "basketball"} /> },
+          ]}
+        />
+      </div>
+
+      {/* ── Real numbers, rolling in. Then rule 2: label them. ── */}
+      {d.winners30d.count > 0 && (
+        <StatStory
+          first={
+            <>
+              <RollingNumber value={d.winners30d.count.toLocaleString("en-US")} className="text-brand underline decoration-[0.06em] underline-offset-[0.12em]" /> winning bettors
+            </>
+          }
+          second={
+            <>
+              won <RollingNumber value={formatUsd(d.winners30d.profit)} className="text-win underline decoration-[0.06em] underline-offset-[0.12em]" /> this month.
+            </>
+          }
+          close={<>Now it&apos;s your turn to be on the winning side.</>}
+        />
+      )}
+
       {/* ── Rules 4–5: ask, don't tell. A bucket question. ── */}
       <section className="px-4 pt-24 sm:px-8 sm:pt-32">
         <div className="mx-auto max-w-[1200px]">
@@ -107,22 +150,31 @@ export default async function Landing() {
         </div>
       </section>
 
-      {/* ── Rule 3: loss aversion ── */}
-      <section className="px-3 pt-24 sm:px-8 sm:pt-32">
-        <div className="mx-auto max-w-[1200px] rounded-[32px] bg-white px-6 py-16 sm:rounded-[40px] sm:px-16 sm:py-24">
-          <Reveal>
-            <h2 className="display max-w-[920px] text-[40px] sm:text-[68px]">
-              Every bet on a hunch is money you hand to <span className="text-brand">the bookmaker.</span>
-            </h2>
-          </Reveal>
-          <div className="mt-12 grid gap-8 sm:grid-cols-2">
-            <Reveal delay={0.1}>
-              <p className="text-[19px] leading-relaxed text-ink-2 sm:text-[21px]">Bookmakers stay rich because most bettors guess. A small group of bettors beat them anyway, month after month, with real money and a real record.</p>
-            </Reveal>
-            <Reveal delay={0.18}>
-              <p className="text-[19px] leading-relaxed text-ink sm:text-[21px]">CopyBet shows you exactly who they are and what they bet. So your next bet isn&apos;t a guess. It&apos;s theirs.</p>
-            </Reveal>
-          </div>
+      {/* ── Scroll story 2 (page turns blue): win more, lose less ── */}
+      <div className="h-[20vh]" />
+      <Showcase
+        tone="brand"
+        label="Win more"
+        labelIcon={<Mascot size={22} variant="white" />}
+        phrase={
+          <>
+            Win more.
+            <br />
+            Lose <InlineMascot variant="white" /> less.
+          </>
+        }
+        cards={[
+          { title: "This month's #1 bettor is way up. Imagine being on their side.", bg: "#ffffff", art: <ArtBigWin amount={d.topProfit30d} /> },
+          { title: "Win on the bets you already love.", bg: "#ff7a59", ink: "#ffffff", art: <ArtMarkets /> },
+          { title: "Same pick. Your bookmaker. Your profit.", bg: "#ece3ff", art: <ArtSlip alert={d.phone.alert} /> },
+          { title: "Get in before the odds move.", bg: "#d4ff4f", art: <ArtSpeed /> },
+        ]}
+      />
+
+      {/* ── Rule 3: loss aversion, lighting up word by word ── */}
+      <section className="px-4 pt-24 sm:px-8 sm:pt-40">
+        <div className="mx-auto max-w-[1100px]">
+          <WordReveal text="Every bet on a hunch is money you hand to *the *bookmaker. The best bettors in the world stopped guessing *years *ago." className="text-[40px] sm:text-[72px]" />
         </div>
       </section>
 
@@ -139,67 +191,8 @@ export default async function Landing() {
           <div className="mt-10">
             <SportGrid perSport={d.perSport} />
           </div>
-        </div>
-      </section>
-
-      {/* ── How it works ── */}
-      <section id="how" className="scroll-mt-24 px-4 pt-24 sm:px-8 sm:pt-32">
-        <div className="mx-auto max-w-[1200px]">
-          <Reveal>
-            <Eyebrow>How it works</Eyebrow>
-            <h2 className="display mt-5 max-w-[860px] text-[44px] sm:text-[72px]">Three steps to betting the right way.</h2>
-          </Reveal>
-          <div className="mt-10 grid gap-3 lg:grid-cols-3">
-            <Reveal className="flex flex-col overflow-hidden rounded-[32px] bg-brand p-7 text-white sm:p-9 lg:min-h-[420px]">
-              <div className="text-[15px] font-semibold opacity-70">01</div>
-              <h3 className="title mt-2 text-[28px] leading-tight">Find the winners</h3>
-              <p className="mt-2 text-[17px] text-white/75">See who actually makes money in your sport. Sort by profit, ROI or win rate, or don&apos;t filter at all.</p>
-              <div className="mt-auto flex flex-wrap gap-2 pt-8">
-                {["NBA", "ROI > 15%", "Last 30 days", "50+ bets", "Game day"].map((t, i) => (
-                  <span key={t} className={`rounded-full px-4 py-2 text-[15px] font-medium ${i % 2 ? "bg-white/15" : "bg-white text-brand"}`}>
-                    {t}
-                  </span>
-                ))}
-              </div>
-            </Reveal>
-            <Reveal delay={0.08} className="flex flex-col overflow-hidden rounded-[32px] bg-white p-7 sm:p-9 lg:min-h-[420px]">
-              <div className="text-[15px] font-semibold text-ink-3">02</div>
-              <h3 className="title mt-2 text-[28px] leading-tight">Pick the bets you want</h3>
-              <p className="mt-2 text-[17px] text-ink-2">All of their bets, or only the ones that fit you. Your filter is already ticked for you.</p>
-              <div className="mt-auto space-y-2 pt-8">
-                {(
-                  [
-                    ["Everything they bet", false],
-                    ["Only Basketball", true],
-                    ["Only bets over $1,000", true],
-                  ] as const
-                ).map(([t, on]) => (
-                  <div key={t} className="flex items-center justify-between rounded-2xl bg-surface-2 px-4 py-3 text-[16px]">
-                    {t}
-                    <span className={`flex h-6 w-6 items-center justify-center rounded-full ${on ? "bg-brand" : "border-2 border-surface-3"}`}>
-                      {on && (
-                        <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden>
-                          <path d="M3.5 8.5l3 3 6-7" stroke="#fff" strokeWidth="2.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      )}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </Reveal>
-            <Reveal delay={0.16} className="flex flex-col overflow-hidden rounded-[32px] bg-lime p-7 text-[#10173a] sm:p-9 lg:min-h-[420px]">
-              <div className="text-[15px] font-semibold opacity-60">03</div>
-              <h3 className="title mt-2 text-[28px] leading-tight">Bet it the second they do</h3>
-              <p className="mt-2 text-[17px] text-[#10173a]/70">Their pick lands on your phone the moment they bet. Place it with your bookmaker in seconds.</p>
-              <div className="mt-8 rounded-[22px] rounded-tl-md bg-white p-4 text-[15px] lg:mt-auto shadow-[0_20px_40px_-20px_rgba(16,23,58,.35)]">
-                <div className="flex items-center gap-2 font-semibold">
-                  <span className="h-2 w-2 rounded-full bg-win" /> New bet
-                </div>
-                <div className="mt-1 text-ink-2">NBA · Lakers vs. Celtics · in 3h</div>
-                <div className="mt-1 font-semibold">Lakers @ 2.38 · $2,500</div>
-                <div className="mt-1 text-[13px] font-medium text-win">+18.6% ROI on NBA (30d)</div>
-              </div>
-            </Reveal>
+          <div className="mt-6">
+            <LeagueMarquee />
           </div>
         </div>
       </section>
@@ -343,17 +336,20 @@ export default async function Landing() {
         </div>
       </section>
 
-      {/* ── Rule 2: label them, then a calm close ── */}
-      <section className="px-3 pt-24 pb-6 sm:px-8 sm:pt-32">
-        <div className="relative mx-auto max-w-[1200px] overflow-hidden rounded-[32px] bg-brand px-6 py-20 text-center text-white sm:rounded-[40px] sm:py-28">
-          <Reveal>
-            <h2 className="display mx-auto max-w-[900px] text-[44px] sm:text-[76px]">You&apos;re the kind of bettor who does the homework.</h2>
-            <p className="mx-auto mt-6 max-w-[520px] text-[20px] text-white/80">Now start winning like one.</p>
-            <ButtonLink href="/app" variant="lime" size="lg" className="mt-10">
-              Start winning
-            </ButtonLink>
-          </Reveal>
-        </div>
+      {/* ── Rule 2 + calm close: one giant phrase, the mascot inside it ── */}
+      <section className="relative mt-24 overflow-hidden bg-lime px-4 pt-24 pb-40 text-center text-[#10173a] sm:mt-32 sm:pt-32 sm:pb-56">
+        <RisingMascot />
+        <Reveal className="relative">
+          <p className="text-[17px] font-medium opacity-70">For bettors who do the homework.</p>
+          <h2 className="display mx-auto mt-5 max-w-[1000px] text-[56px] sm:text-[104px]">
+            Start winning.
+            <br />
+            Follow <InlineMascot /> the best.
+          </h2>
+          <ButtonLink href="/app" variant="brand" size="lg" className="mt-10">
+            Start winning, free
+          </ButtonLink>
+        </Reveal>
       </section>
 
       <footer className="px-4 pt-10 pb-12 sm:px-8">

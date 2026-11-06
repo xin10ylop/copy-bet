@@ -5,7 +5,7 @@ type Variant = "brand" | "soft" | "ghost" | "dark" | "light" | "lime";
 type Size = "sm" | "md" | "lg";
 
 const V: Record<Variant, string> = {
-  brand: "bg-brand text-white hover:bg-brand-2 shadow-[0_8px_24px_-8px_rgba(58,91,255,.55)]",
+  brand: "bg-brand text-white hover:bg-brand-2 shadow-[0_8px_24px_-8px_rgba(22,82,240,.55)]",
   soft: "bg-brand-soft text-brand hover:bg-surface-3",
   ghost: "bg-transparent text-ink hover:bg-surface-2",
   dark: "bg-ink text-bg hover:opacity-90",

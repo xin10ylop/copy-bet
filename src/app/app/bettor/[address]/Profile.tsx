@@ -261,7 +261,7 @@ function SportsBlock({ s, activeSports, onPick }: { s: BettorStats; activeSports
   );
 }
 
-const TIMING_COLORS: Record<TimingKey, string> = { early: "#3A5BFF", day: "#8FA4FF", late: "#FF7A59", live: "#E8435F", futures: "#C9CEE6" };
+const TIMING_COLORS: Record<TimingKey, string> = { early: "#1652F0", day: "#8FA4FF", late: "#FF7A59", live: "#E8435F", futures: "#C9CEE6" };
 
 function TimingBlock({ s }: { s: BettorStats }) {
   if (!s.bets) return null;

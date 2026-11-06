@@ -50,7 +50,7 @@ export function HeroPhone({ bettors, alert, compare }: { bettors: PhoneBettor[];
   if (!star) return null;
 
   return (
-    <div className="relative mx-auto h-[560px] w-[278px] rounded-[50px] bg-[#16161a] p-[10px] shadow-[0_50px_100px_-30px_rgba(58,91,255,.45),0_30px_60px_-30px_rgba(0,0,0,.4)] sm:h-[600px] sm:w-[296px]">
+    <div className="relative mx-auto h-[560px] w-[278px] rounded-[50px] bg-[#16161a] p-[10px] shadow-[0_50px_100px_-30px_rgba(22,82,240,.45),0_30px_60px_-30px_rgba(0,0,0,.4)] sm:h-[600px] sm:w-[296px]">
       <div className="absolute top-[18px] left-1/2 z-30 h-[26px] w-[92px] -translate-x-1/2 rounded-full bg-[#16161a]" />
       <div className="relative h-full overflow-hidden rounded-[41px] bg-[#f4f6ff] text-[#10173a]">
         {/* status bar */}
@@ -168,7 +168,7 @@ function Profile({ b, cmp, dim }: { b: PhoneBettor; cmp: PhoneCompare | null; di
       {cmp && (
       <div className="mt-3 overflow-hidden rounded-[18px] bg-white">
         <div className="grid grid-cols-2 text-[10.5px] font-semibold">
-          <div className="bg-[#3A5BFF] px-3 py-2 text-white">{sportLabel(cmp.sport)} only</div>
+          <div className="bg-[#1652F0] px-3 py-2 text-white">{sportLabel(cmp.sport)} only</div>
           <div className="bg-[#ebeffd] px-3 py-2">Everything else</div>
         </div>
         <div className="grid grid-cols-2">
@@ -221,7 +221,7 @@ function Profile({ b, cmp, dim }: { b: PhoneBettor; cmp: PhoneCompare | null; di
       </div>
         </>
       )}
-      <div className="absolute inset-x-3.5 bottom-4 flex h-11 items-center justify-center rounded-full bg-[#3A5BFF] text-[13px] font-semibold text-white shadow-[0_10px_24px_-10px_rgba(58,91,255,.7)]">Follow {b.name.length > 14 ? "" : b.name}</div>
+      <div className="absolute inset-x-3.5 bottom-4 flex h-11 items-center justify-center rounded-full bg-[#1652F0] text-[13px] font-semibold text-white shadow-[0_10px_24px_-10px_rgba(22,82,240,.7)]">Follow {b.name.length > 14 ? "" : b.name}</div>
     </Screen>
   );
 }
@@ -243,7 +243,7 @@ function Follow({ b, sport }: { b: PhoneBettor; sport: string }) {
               <div className="text-[11px] text-[#545c80]">Which of their bets do you want?</div>
               <div className="mt-3 grid grid-cols-2 gap-1.5">
                 <div className="rounded-[14px] bg-white p-2.5 text-[11px] font-semibold">Everything</div>
-                <div className="rounded-[14px] bg-[#dce3ff] p-2.5 text-[11px] font-semibold ring-2 ring-[#3A5BFF]">Only some</div>
+                <div className="rounded-[14px] bg-[#dce3ff] p-2.5 text-[11px] font-semibold ring-2 ring-[#1652F0]">Only some</div>
               </div>
               <div className="mt-2.5 flex gap-1.5">
                 <span className="flex items-center gap-1 rounded-full bg-[#10173a] px-2.5 py-1 text-[10.5px] font-semibold text-white">
@@ -251,7 +251,7 @@ function Follow({ b, sport }: { b: PhoneBettor; sport: string }) {
                 </span>
                 <span className="rounded-full bg-white px-2.5 py-1 text-[10.5px] font-semibold">$500+</span>
               </div>
-              <div className="mt-3 flex h-10 items-center justify-center rounded-full bg-[#3A5BFF] text-[12.5px] font-semibold text-white">Follow these bets</div>
+              <div className="mt-3 flex h-10 items-center justify-center rounded-full bg-[#1652F0] text-[12.5px] font-semibold text-white">Follow these bets</div>
             </motion.div>
           ) : (
             <motion.div key="d" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="py-4 text-center">

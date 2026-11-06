@@ -253,7 +253,7 @@ export type BettorProfile = NonNullable<Awaited<ReturnType<typeof bettorProfile>
 
 /** Headline numbers for the landing page, from real indexed data. */
 export async function landingStats() {
-  const [tracked, perSport, top] = await Promise.all([
+  const [tracked, perSport, top, winners] = await Promise.all([
     db.bettor.count({ where: { isMarketMaker: false } }),
     db.$queryRawUnsafe<{ sport: string; bettors: number; bets: number; best: number }[]>(
       `SELECT "sport", COUNT(DISTINCT "bettorId")::int AS "bettors", SUM("n")::int AS "bets", MAX("p")::float8 AS "best" FROM (
@@ -263,9 +263,18 @@ export async function landingStats() {
       sinceDay("30d"),
     ),
     listBettors({ sports: [], timeframe: "30d", timing: [], roi: {}, winRate: {}, profit: {}, bets: { min: 20 }, followers: {}, hasOpen: false, sort: "profit" }, 6),
+    // Bettors who are up over the last 30 days, and how much they won together.
+    db.$queryRawUnsafe<{ n: number; total: number }[]>(
+      `SELECT COUNT(*)::int AS "n", COALESCE(SUM("p"), 0)::float8 AS "total" FROM (
+         SELECT SUM(d."profit") AS "p" FROM "DailyStat" d
+         JOIN "Bettor" b ON b."address" = d."bettorId" AND b."isMarketMaker" = false
+         WHERE d."day" >= $1 GROUP BY d."bettorId" HAVING SUM(d."profit") > 0) w`,
+      sinceDay("30d"),
+    ),
   ]);
   return {
     tracked,
+    winners30d: { count: Number(winners[0]?.n ?? 0), profit: Number(winners[0]?.total ?? 0) },
     perSport: Object.fromEntries(perSport.map((r) => [r.sport, { bettors: Number(r.bettors), bets: Number(r.bets), best: Number(r.best) }])),
     top: top.rows,
   };

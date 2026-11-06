@@ -2,7 +2,7 @@
 import clsx from "clsx";
 
 const PALETTES = [
-  ["#3A5BFF", "#D4FF4F"],
+  ["#1652F0", "#D4FF4F"],
   ["#FF7A59", "#FFD3A8"],
   ["#12B76A", "#C9F7DF"],
   ["#8B5CF6", "#E3D7FF"],

@@ -4,10 +4,10 @@ import clsx from "clsx";
 export function LogoMark({ size = 32, className }: { size?: number; className?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 40 40" className={className} aria-hidden>
-      <rect width="40" height="40" rx="12" fill="#3A5BFF" />
+      <rect width="40" height="40" rx="12" fill="#1652F0" />
       <rect x="15" y="9" width="16" height="16" rx="5" fill="#D4FF4F" />
       <rect x="9" y="15" width="16" height="16" rx="5" fill="#fff" />
-      <path d="M14 26.2 20.4 19.8M15.6 19.6h5v5" stroke="#3A5BFF" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <path d="M14 26.2 20.4 19.8M15.6 19.6h5v5" stroke="#1652F0" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
     </svg>
   );
 }

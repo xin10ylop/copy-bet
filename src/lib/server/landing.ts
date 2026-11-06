@@ -16,6 +16,8 @@ export interface LandingData {
   tracked: number;
   perSport: Record<string, { bettors: number; bets: number; best: number }>;
   topProfit30d: number | null;
+  /** Bettors up over the last 30 days and their combined profit (real data). */
+  winners30d: { count: number; profit: number };
   phone: { bettors: PhoneBettor[]; alert: PhoneAlert | null; compare: PhoneCompare | null };
   compare: CompareExample | null;
 }
@@ -26,7 +28,7 @@ let cache: { at: number; data: LandingData } | null = null;
 export async function getLandingData(): Promise<LandingData> {
   if (cache && Date.now() - cache.at < 5 * 60_000) return cache.data;
   try {
-    const { tracked, perSport, top } = await landingStats();
+    const { tracked, perSport, top, winners30d } = await landingStats();
     const alerts: PhoneAlert[] = [];
     let compare: CompareExample | null = null;
     for (const b of top) {
@@ -59,10 +61,10 @@ export async function getLandingData(): Promise<LandingData> {
     const phoneBettors: PhoneBettor[] = ordered.slice(0, 4).map((b) => ({ address: b.address, name: b.name, profileImage: b.profileImage, roi: b.roi, profit: b.profit, winRate: b.winRate, bets: b.bets, sport: b === star && phoneCompare ? phoneCompare.sport : (b.topSports[0]?.sport ?? "other") }));
     const starAlert = star ? await db.openPosition.findFirst({ where: { bettorId: star.address, avgPrice: { gt: 0.2, lt: 0.8 } }, orderBy: { entryAt: "desc" } }) : null;
     const alert: PhoneAlert | null = starAlert ? { league: starAlert.league, title: starAlert.title, outcome: starAlert.outcome, price: starAlert.avgPrice, usd: starAlert.cost } : (alerts[0] ?? null);
-    const data: LandingData = { tracked, perSport, topProfit30d: top[0]?.profit ?? null, phone: { bettors: phoneBettors, alert, compare: phoneCompare }, compare };
+    const data: LandingData = { tracked, winners30d, perSport, topProfit30d: top[0]?.profit ?? null, phone: { bettors: phoneBettors, alert, compare: phoneCompare }, compare };
     cache = { at: Date.now(), data };
     return data;
   } catch {
-    return { tracked: 0, perSport: {}, topProfit30d: null, phone: { bettors: [], alert: null, compare: null }, compare: null };
+    return { tracked: 0, winners30d: { count: 0, profit: 0 }, perSport: {}, topProfit30d: null, phone: { bettors: [], alert: null, compare: null }, compare: null };
   }
 }
