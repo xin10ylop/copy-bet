@@ -1,43 +1,116 @@
 "use client";
-import { motion } from "motion/react";
+import { motion, useMotionValue, useSpring } from "motion/react";
+import { useEffect, useRef } from "react";
 
 /**
- * The CopyBet Twins: the big one is the pro, the small one is you, copying the pro.
- * Also the logo mark. Blue only (lime stays in the UI).
- * `variant="white"` is for blue backgrounds. `animate`: the pro hops, the small twin copies a beat later, both blink.
+ * Echo — the CopyBet mark and mascot. The front character is the pro; the shape behind it is
+ * the copy (you). Blue only in the logo; lime stays in the UI.
+ *
+ * - `copy`: "wash" (pale filled copy) or "outline" (the original J).
+ * - `animate`: the eyes look around and blink; the pro hops and the copy follows a beat later.
+ * - `follow`: the pupils follow the pointer (used for the logo).
+ * - `variant="white"`: for blue backgrounds.
  */
-export function Mascot({ size = 48, animate = false, variant = "color", className }: { size?: number; animate?: boolean; variant?: "color" | "white"; className?: string }) {
-  const white = variant === "white";
-  const pro = white ? "#FFFFFF" : "#1652F0";
-  const proEye = white ? "#1652F0" : "#FFFFFF";
-  const you = white ? "#A9C0FF" : "#8DADFF";
-  const ring = white ? "#1652F0" : "var(--bg, #F4F6FF)";
-  const pupil = "#0B1233";
+export const ECHO = {
+  copy: "wash" as "wash" | "outline",
+  washColor: "#C3D3FF",
+  outlineColor: "#8DADFF",
+};
 
-  const hop = (delay: number) =>
-    animate ? { animate: { y: [0, -9, 0, 0] }, transition: { duration: 2.4, times: [0, 0.12, 0.26, 1], repeat: Infinity, ease: "easeOut" as const, delay } } : {};
-  const blink = animate ? { animate: { scaleY: [1, 1, 0.12, 1, 1] }, transition: { duration: 4.6, times: [0, 0.86, 0.89, 0.92, 1], repeat: Infinity } } : {};
+const P = "#0B1233";
+// Where the pupils look, in px of the 120 viewBox: [x, y]. Default is up-right (toward winning).
+const LOOK: [number, number][] = [
+  [2.6, -2.6],
+  [3.2, 0],
+  [2.6, -2.6],
+  [-3, 0.4],
+  [-2.2, -2.6],
+  [0, 0],
+  [2.6, -2.6],
+];
+
+export function Mascot({
+  size = 48,
+  animate = false,
+  follow = false,
+  variant = "color",
+  copy = ECHO.copy,
+  className,
+}: {
+  size?: number;
+  animate?: boolean;
+  follow?: boolean;
+  variant?: "color" | "white";
+  copy?: "wash" | "outline";
+  className?: string;
+}) {
+  const white = variant === "white";
+  const body = white ? "#FFFFFF" : "#1652F0";
+  const eyeWhite = white ? "#1652F0" : "#FFFFFF";
+  const copyFill = copy === "wash" ? (white ? "rgba(255,255,255,.38)" : ECHO.washColor) : "none";
+  const copyStroke = copy === "outline" ? (white ? "#A9C0FF" : ECHO.outlineColor) : "none";
+
+  // Pointer-following pupils (logo).
+  const ref = useRef<SVGSVGElement>(null);
+  const px = useMotionValue(2.6);
+  const py = useMotionValue(-2.6);
+  const sx = useSpring(px, { stiffness: 220, damping: 20 });
+  const sy = useSpring(py, { stiffness: 220, damping: 20 });
+  useEffect(() => {
+    if (!follow) return;
+    const onMove = (e: PointerEvent) => {
+      const r = ref.current?.getBoundingClientRect();
+      if (!r) return;
+      const dx = e.clientX - (r.left + r.width / 2);
+      const dy = e.clientY - (r.top + r.height / 2);
+      const d = Math.hypot(dx, dy) || 1;
+      const k = Math.min(1, d / 160) * 3.4;
+      px.set((dx / d) * k);
+      py.set((dy / d) * k);
+    };
+    window.addEventListener("pointermove", onMove);
+    return () => window.removeEventListener("pointermove", onMove);
+  }, [follow, px, py]);
+
+  const pupils = (
+    <>
+      <circle cx="44" cy="62" r="4" fill={P} />
+      <circle cx="66" cy="62" r="4" fill={P} />
+    </>
+  );
+
+  let pupilGroup: React.ReactNode;
+  if (follow) {
+    pupilGroup = <motion.g style={{ x: sx, y: sy }}>{pupils}</motion.g>;
+  } else if (animate) {
+    pupilGroup = (
+      <motion.g
+        animate={{ x: LOOK.map((l) => l[0]), y: LOOK.map((l) => l[1]) }}
+        transition={{ duration: 7, times: [0, 0.14, 0.3, 0.46, 0.62, 0.78, 1], repeat: Infinity, ease: "easeInOut" }}
+      >
+        {pupils}
+      </motion.g>
+    );
+  } else {
+    pupilGroup = <g transform="translate(2.6 -2.6)">{pupils}</g>;
+  }
+
+  const blink = animate || follow ? { animate: { scaleY: [1, 1, 0.1, 1, 1] }, transition: { duration: 4.8, times: [0, 0.86, 0.89, 0.92, 1], repeat: Infinity } } : {};
+  const hop = (delay: number) => (animate ? { animate: { y: [0, -8, 0, 0] }, transition: { duration: 3.5, times: [0, 0.08, 0.18, 1], repeat: Infinity, ease: "easeOut" as const, delay } } : {});
 
   return (
-    <svg width={size} height={size} viewBox="0 0 120 120" className={className} aria-hidden>
+    <svg ref={ref} width={size} height={size} viewBox="0 0 120 120" className={className} aria-hidden>
+      {/* the copy (you), following a beat later */}
+      <motion.g {...hop(0.16)}>
+        <rect x="34" y="18" width="70" height="70" rx="24" fill={copyFill} stroke={copyStroke} strokeWidth={copy === "outline" ? 6 : 0} />
+      </motion.g>
       {/* the pro */}
       <motion.g {...hop(0)}>
-        <rect x="38" y="12" width="70" height="70" rx="24" fill={pro} />
-        <motion.g {...blink} style={{ transformOrigin: "78px 43px", transformBox: "view-box" }}>
-          <ellipse cx="66" cy="42" rx="7" ry="9" fill={proEye} />
-          <ellipse cx="88" cy="42" rx="7" ry="9" fill={proEye} />
-          <circle cx="68.5" cy="44" r="4" fill={pupil} />
-          <circle cx="90.5" cy="44" r="4" fill={pupil} />
-        </motion.g>
-      </motion.g>
-      {/* you, copying a beat later */}
-      <motion.g {...hop(0.22)}>
-        <rect x="10" y="50" width="58" height="58" rx="20" fill={you} stroke={ring} strokeWidth="5" />
-        <motion.g {...blink} style={{ transformOrigin: "42px 75px", transformBox: "view-box" }}>
-          <ellipse cx="33" cy="76" rx="6" ry="7.5" fill="#fff" />
-          <ellipse cx="51" cy="76" rx="6" ry="7.5" fill="#fff" />
-          <circle cx="35.5" cy="73.5" r="3.4" fill={pupil} />
-          <circle cx="53.5" cy="73.5" r="3.4" fill={pupil} />
+        <rect x="18" y="32" width="70" height="70" rx="24" fill={body} />
+        <motion.g {...blink} style={{ transformOrigin: "55px 62px", transformBox: "view-box" }}>
+          <ellipse cx="44" cy="62" rx="7" ry="9" fill={eyeWhite} />
+          <ellipse cx="66" cy="62" rx="7" ry="9" fill={eyeWhite} />
+          {pupilGroup}
         </motion.g>
       </motion.g>
     </svg>
@@ -45,8 +118,8 @@ export function Mascot({ size = 48, animate = false, variant = "color", classNam
 }
 
 /**
- * The Twins sized to sit inside a line of big headline text. They pop into the gap when the
- * phrase scrolls into view (leaving a little dot where they landed), then keep hopping.
+ * Echo sized to sit inside a line of big headline text. It pops into the gap when the phrase
+ * scrolls into view (leaving a little dot where it landed), then looks around and hops.
  */
 export function InlineMascot({ variant = "color" }: { variant?: "color" | "white" }) {
   return (

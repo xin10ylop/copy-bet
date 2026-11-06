@@ -65,7 +65,7 @@ export function Discover() {
 
       <header className="flex items-center justify-between pt-2">
         <Link href="/" aria-label="Home" className="press">
-          <LogoMark size={36} />
+          <LogoMark size={36} follow />
         </Link>
         <Link href="/app/account" className={clsx("press flex h-10 items-center gap-2 rounded-full px-4 text-[14px] font-semibold", me?.user?.telegram ? "bg-win-soft text-win" : "bg-surface text-ink")}>
           <span className={clsx("h-2 w-2 rounded-full", me?.user?.telegram ? "bg-win" : "bg-ink-3")} />
