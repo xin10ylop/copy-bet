@@ -29,11 +29,32 @@ model Bettor {
   createdAt      DateTime @default(now())
 
   bets      SettledBet[]
+  daily     DailyStat[]
   positions OpenPosition[]
   follows   Follow[]
 }
 
+/// Settled-bet totals per bettor × day × sport × timing. All ranking and profile
+/// stats come from here: one small row replaces many bets, which keeps the
+/// database small enough for a free Postgres plan.
+model DailyStat {
+  bettorId String
+  day      Int // days since 1970-01-01 (UTC), from the bet's settle time
+  sport    String
+  timing   String
+  bets     Int
+  wins     Int
+  staked   Float
+  profit   Float
+
+  bettor Bettor @relation(fields: [bettorId], references: [address], onDelete: Cascade)
+
+  @@id([bettorId, day, sport, timing])
+  @@index([day])
+}
+
 /// One settled bet = one market outcome the bettor bought, now resolved or sold.
+/// Only each bettor's most recent bets are kept (for "Recent results" and timing hints).
 model SettledBet {
   id          String   @id // bettor:condition:outcomeIndex
   bettorId    String

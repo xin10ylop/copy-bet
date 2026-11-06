@@ -1,4 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "crons": [{ "path": "/api/cron/index", "schedule": "0 7 * * *" }]
+  "crons": [{ "path": "/api/cron/index", "schedule": "0 7 * * *" }],
+  "ignoreCommand": "echo \"$VERCEL_GIT_COMMIT_MESSAGE\" | grep -qF '[skip deploy]'"
 }

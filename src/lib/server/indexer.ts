@@ -7,6 +7,7 @@ import { classifyEvent, loadLeagueCodes } from "../sports";
 import { timingFor } from "../filters";
 
 const MIN_STAKE = 1; // USD — ignore dust
+const RECENT_BETS_KEPT = 50;
 
 async function eventMeta(slugs: string[]) {
   const unique = [...new Set(slugs)];
@@ -138,6 +139,21 @@ export async function indexBettor(addressRaw: string, hint: IndexHint = {}) {
   }
   const settled = [...settledMap.values()].filter((b) => b.cost >= MIN_STAKE);
 
+  // Stats are stored as daily totals; only the latest bets are kept individually.
+  const dailyMap = new Map<string, { bettorId: string; day: number; sport: string; timing: string; bets: number; wins: number; staked: number; profit: number }>();
+  for (const b of settled) {
+    const day = Math.floor(b.settledTs / 86400);
+    const key = `${day}:${b.sport}:${b.timing}`;
+    const row = dailyMap.get(key) ?? { bettorId: address, day, sport: b.sport, timing: b.timing, bets: 0, wins: 0, staked: 0, profit: 0 };
+    row.bets++;
+    if (b.pnl > 0) row.wins++;
+    row.staked += b.cost;
+    row.profit += b.pnl;
+    dailyMap.set(key, row);
+  }
+  const daily = [...dailyMap.values()];
+  const recent = settled.sort((a, b) => b.settledTs - a.settledTs).slice(0, RECENT_BETS_KEPT);
+
   const positions = openSrc.map(({ p, cls }) => {
     const m = meta.get(p.event_slug);
     const start = m?.startTime ?? null;
@@ -183,9 +199,11 @@ export async function indexBettor(addressRaw: string, hint: IndexHint = {}) {
 
   await db.$transaction([
     db.bettor.upsert({ where: { address }, create: { address, ...bettor }, update: stripUndefined(bettor) }),
+    db.dailyStat.deleteMany({ where: { bettorId: address } }),
     db.settledBet.deleteMany({ where: { bettorId: address } }),
     db.openPosition.deleteMany({ where: { bettorId: address } }),
-    db.settledBet.createMany({ data: settled }),
+    db.dailyStat.createMany({ data: daily }),
+    db.settledBet.createMany({ data: recent }),
     db.openPosition.createMany({ data: positions }),
   ]);
 

@@ -36,10 +36,17 @@ class Params {
   }
 }
 
-function betWhere(f: Pick<BettorFilter, "sports" | "timing" | "timeframe">, p: Params, alias = "s") {
+/** First day (days since epoch) inside the timeframe, or null for all time. */
+function sinceDay(tf: BettorFilter["timeframe"]) {
+  const since = timeframeSince(tf);
+  return since ? Math.floor(since.getTime() / 86400_000) : null;
+}
+
+/** WHERE clause over "DailyStat" rows (alias d) for a sport/timing/timeframe filter. */
+function betWhere(f: Pick<BettorFilter, "sports" | "timing" | "timeframe">, p: Params, alias = "d") {
   const clauses: string[] = [];
-  const since = timeframeSince(f.timeframe);
-  if (since) clauses.push(`${alias}."settledTs" >= ${p.add(Math.floor(since.getTime() / 1000))}`);
+  const day = sinceDay(f.timeframe);
+  if (day !== null) clauses.push(`${alias}."day" >= ${p.add(day)}`);
   if (f.sports.length) clauses.push(`${alias}."sport" IN (${p.list(f.sports)})`);
   if (f.timing.length) clauses.push(`${alias}."timing" IN (${p.list(f.timing)})`);
   return clauses.length ? clauses.join(" AND ") : "TRUE";
@@ -76,15 +83,15 @@ export async function listBettors(f: BettorFilter, limit = 30, offset = 0): Prom
   const base = `
     SELECT * FROM (
       SELECT b."address" AS "address", b."name" AS "name", b."pseudonym" AS "pseudonym", b."profileImage" AS "profileImage", b."verified" AS "verified",
-        COUNT(s."id")::int AS "bets",
-        SUM(CASE WHEN s."pnl" > 0 THEN 1 ELSE 0 END)::int AS "wins",
-        SUM(s."cost")::float8 AS "staked",
-        SUM(s."pnl")::float8 AS "profit",
-        (100.0 * SUM(s."pnl") / GREATEST(SUM(s."cost"), 1))::float8 AS "roi",
-        (100.0 * SUM(CASE WHEN s."pnl" > 0 THEN 1 ELSE 0 END) / COUNT(s."id"))::float8 AS "winRate",
+        SUM(d."bets")::int AS "bets",
+        SUM(d."wins")::int AS "wins",
+        SUM(d."staked")::float8 AS "staked",
+        SUM(d."profit")::float8 AS "profit",
+        (100.0 * SUM(d."profit") / GREATEST(SUM(d."staked"), 1))::float8 AS "roi",
+        (100.0 * SUM(d."wins") / GREATEST(SUM(d."bets"), 1))::float8 AS "winRate",
         (SELECT COUNT(*) FROM "Follow" fo WHERE fo."bettorId" = b."address")::int AS "followers",
         (SELECT COUNT(*) FROM "OpenPosition" o WHERE o."bettorId" = b."address" ${openSports})::int AS "openCount"
-      FROM "Bettor" b JOIN "SettledBet" s ON s."bettorId" = b."address"
+      FROM "Bettor" b JOIN "DailyStat" d ON d."bettorId" = b."address"
       WHERE b."isMarketMaker" = false AND ${where}
       GROUP BY b."address"
     ) t
@@ -127,9 +134,9 @@ async function sportMix(addresses: string[], f: BettorFilter) {
   const inList = p.list(addresses);
   const where = betWhere({ sports: [], timing: [], timeframe: f.timeframe }, p);
   const rows = await db.$queryRawUnsafe<{ bettorId: string; sport: string; n: number }[]>(
-    `SELECT s."bettorId" AS "bettorId", s."sport" AS "sport", COUNT(*)::int AS "n" FROM "SettledBet" s
-     WHERE s."bettorId" IN (${inList}) AND ${where}
-     GROUP BY s."bettorId", s."sport"`,
+    `SELECT d."bettorId" AS "bettorId", d."sport" AS "sport", SUM(d."bets")::int AS "n" FROM "DailyStat" d
+     WHERE d."bettorId" IN (${inList}) AND ${where}
+     GROUP BY d."bettorId", d."sport"`,
     ...p.values,
   );
   const out = new Map<string, { sport: string; share: number }[]>();
@@ -146,23 +153,27 @@ async function sportMix(addresses: string[], f: BettorFilter) {
 
 const TIMING_KEYS: TimingKey[] = ["early", "day", "late", "live", "futures"];
 
-export function computeStats(rows: { sport: string; cost: number; pnl: number; timing: string; leadMinutes: number | null }[]): BettorStats {
-  const bets = rows.length;
-  const wins = rows.filter((r) => r.pnl > 0).length;
-  const staked = rows.reduce((a, r) => a + r.cost, 0);
-  const profit = rows.reduce((a, r) => a + r.pnl, 0);
+type DailyRow = { sport: string; timing: string; bets: number; wins: number; staked: number; profit: number };
+
+/** Combine daily totals into a bettor's stats. `leads` = minutes before kickoff of their recent bets. */
+export function computeStats(rows: DailyRow[], leads: number[] = []): BettorStats {
+  const sum = (rs: DailyRow[], k: "bets" | "wins" | "staked" | "profit") => rs.reduce((a, r) => a + r[k], 0);
+  const bets = sum(rows, "bets");
+  const wins = sum(rows, "wins");
+  const staked = sum(rows, "staked");
+  const profit = sum(rows, "profit");
   const timing = Object.fromEntries(TIMING_KEYS.map((k) => [k, 0])) as Record<TimingKey, number>;
-  for (const r of rows) timing[r.timing as TimingKey] = (timing[r.timing as TimingKey] ?? 0) + 1;
+  for (const r of rows) timing[r.timing as TimingKey] = (timing[r.timing as TimingKey] ?? 0) + r.bets;
   for (const k of TIMING_KEYS) timing[k] = bets ? timing[k] / bets : 0;
-  const leads = rows.map((r) => r.leadMinutes).filter((x): x is number => x !== null).sort((a, b) => a - b);
-  const bySport = new Map<string, typeof rows>();
+  const sorted = [...leads].sort((a, b) => a - b);
+  const bySport = new Map<string, DailyRow[]>();
   for (const r of rows) bySport.set(r.sport, [...(bySport.get(r.sport) ?? []), r]);
   const sports: SportSlice[] = [...bySport.entries()]
     .map(([sport, rs]) => {
-      const st = rs.reduce((a, r) => a + r.cost, 0);
-      const pr = rs.reduce((a, r) => a + r.pnl, 0);
-      const w = rs.filter((r) => r.pnl > 0).length;
-      return { sport, bets: rs.length, wins: w, staked: st, profit: pr, roi: st ? (100 * pr) / st : 0, share: rs.length / (bets || 1) };
+      const st = sum(rs, "staked");
+      const pr = sum(rs, "profit");
+      const n = sum(rs, "bets");
+      return { sport, bets: n, wins: sum(rs, "wins"), staked: st, profit: pr, roi: st ? (100 * pr) / st : 0, share: n / (bets || 1) };
     })
     .sort((a, b) => b.bets - a.bets);
   return {
@@ -173,23 +184,27 @@ export function computeStats(rows: { sport: string; cost: number; pnl: number; t
     profit,
     roi: staked ? (100 * profit) / staked : 0,
     timing,
-    medianLeadMinutes: leads.length ? leads[Math.floor(leads.length / 2)] : null,
+    medianLeadMinutes: sorted.length ? sorted[Math.floor(sorted.length / 2)] : null,
     sports,
   };
 }
 
 export async function bettorStats(address: string, f: Pick<BettorFilter, "sports" | "timing" | "timeframe">) {
-  const since = timeframeSince(f.timeframe);
-  const rows = await db.settledBet.findMany({
-    where: {
-      bettorId: address,
-      ...(since ? { settledTs: { gte: Math.floor(since.getTime() / 1000) } } : {}),
-      ...(f.sports.length ? { sport: { in: f.sports } } : {}),
-      ...(f.timing.length ? { timing: { in: f.timing } } : {}),
-    },
-    select: { sport: true, cost: true, pnl: true, timing: true, leadMinutes: true },
-  });
-  return computeStats(rows);
+  const day = sinceDay(f.timeframe);
+  const filter = {
+    bettorId: address,
+    ...(f.sports.length ? { sport: { in: f.sports } } : {}),
+    ...(f.timing.length ? { timing: { in: f.timing } } : {}),
+  };
+  const [rows, recent] = await Promise.all([
+    db.dailyStat.findMany({ where: { ...filter, ...(day !== null ? { day: { gte: day } } : {}) }, select: { sport: true, timing: true, bets: true, wins: true, staked: true, profit: true } }),
+    // Median lead time comes from the bettor's most recent bets that match.
+    db.settledBet.findMany({ where: { ...filter, leadMinutes: { not: null } }, select: { leadMinutes: true } }),
+  ]);
+  return computeStats(
+    rows,
+    recent.map((r) => r.leadMinutes!),
+  );
 }
 
 export async function bettorProfile(address: string, f: BettorFilter) {
@@ -238,15 +253,14 @@ export type BettorProfile = NonNullable<Awaited<ReturnType<typeof bettorProfile>
 
 /** Headline numbers for the landing page, from real indexed data. */
 export async function landingStats() {
-  const since30 = Math.floor((Date.now() - 30 * 86400_000) / 1000);
   const [tracked, perSport, top] = await Promise.all([
     db.bettor.count({ where: { isMarketMaker: false } }),
     db.$queryRawUnsafe<{ sport: string; bettors: number; bets: number; best: number }[]>(
       `SELECT "sport", COUNT(DISTINCT "bettorId")::int AS "bettors", SUM("n")::int AS "bets", MAX("p")::float8 AS "best" FROM (
-         SELECT s."sport" AS "sport", s."bettorId" AS "bettorId", COUNT(*) AS "n", SUM(s."pnl") AS "p" FROM "SettledBet" s
-         JOIN "Bettor" b ON b."address" = s."bettorId" AND b."isMarketMaker" = false
-         WHERE s."settledTs" >= $1 GROUP BY s."sport", s."bettorId") x GROUP BY "sport"`,
-      since30,
+         SELECT d."sport" AS "sport", d."bettorId" AS "bettorId", SUM(d."bets") AS "n", SUM(d."profit") AS "p" FROM "DailyStat" d
+         JOIN "Bettor" b ON b."address" = d."bettorId" AND b."isMarketMaker" = false
+         WHERE d."day" >= $1 GROUP BY d."sport", d."bettorId") x GROUP BY "sport"`,
+      sinceDay("30d"),
     ),
     listBettors({ sports: [], timeframe: "30d", timing: [], roi: {}, winRate: {}, profit: {}, bets: { min: 20 }, followers: {}, hasOpen: false, sort: "profit" }, 6),
   ]);
