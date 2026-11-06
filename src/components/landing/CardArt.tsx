@@ -104,8 +104,8 @@ export function ArtFollow() {
           </span>
         </div>
       ))}
-      <div className="absolute top-2 right-4">
-        <Mascot size={64} animate />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2">
+        <Mascot size={120} animate />
       </div>
     </div>
   );

@@ -51,11 +51,11 @@ export function StatStory({ first, second, close }: { first: React.ReactNode; se
   return (
     <div ref={ref} className="relative h-[220vh]">
       <div className="sticky top-0 flex h-[100svh] flex-col items-center justify-center px-4 text-center">
-        <div className="display text-[44px] sm:text-[84px]">{first}</div>
-        <motion.div style={{ y: secondY, opacity: secondO }} className="display text-[44px] sm:text-[84px]">
+        <div className="display text-[36px] sm:text-[84px]">{first}</div>
+        <motion.div style={{ y: secondY, opacity: secondO }} className="display text-[36px] sm:text-[84px]">
           {second}
         </motion.div>
-        <motion.div style={{ y: closeY, opacity: closeO }} className="mt-8 text-[20px] font-medium text-ink-2 sm:text-[24px]">
+        <motion.div style={{ y: closeY, opacity: closeO }} className="mt-6 text-[16px] font-medium text-ink-2 sm:mt-8 sm:text-[24px]">
           {close}
         </motion.div>
       </div>
@@ -125,8 +125,8 @@ export function LeagueMarquee({ row = "a", reverse = false, speed = 45 }: { row?
     <div className="group relative overflow-hidden py-1.5 [mask-image:linear-gradient(90deg,transparent,#000_6%,#000_94%,transparent)]">
       <motion.div className="flex w-max gap-3" animate={{ x: reverse ? ["-50%", "0%"] : ["0%", "-50%"] }} transition={{ duration: speed, repeat: Infinity, ease: "linear" }}>
         {items.map(([name, sport], i) => (
-          <a key={i} href={`/app?s=${sport}`} className="press flex items-center gap-3 rounded-full bg-white py-2.5 pr-6 pl-2.5 text-[18px] font-semibold whitespace-nowrap shadow-[0_2px_12px_rgba(16,23,58,.05)] hover:bg-brand-soft sm:text-[20px]">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-soft text-brand">
+          <a key={i} href={`/app?s=${sport}`} className="press flex items-center gap-2.5 rounded-full bg-white py-2 pr-5 pl-2 text-[15px] font-semibold whitespace-nowrap sm:gap-3 sm:py-2.5 sm:pr-6 sm:pl-2.5 sm:text-[20px] shadow-[0_2px_12px_rgba(16,23,58,.05)] hover:bg-brand-soft sm:text-[20px]">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-soft text-brand sm:h-10 sm:w-10">
               <SportIcon sport={sport} size={22} />
             </span>
             {name}

@@ -63,8 +63,8 @@ export function BucketQuiz() {
                 </motion.svg>
               )}
             </span>
-            <div className="title text-[24px] leading-tight">{o.title}</div>
-            <div className={clsx("mt-1 text-[17px]", pick === o.key ? "text-white/70" : "text-ink-2")}>{o.sub}</div>
+            <div className="title text-[20px] leading-tight sm:text-[24px]">{o.title}</div>
+            <div className={clsx("mt-1 text-[15px] sm:text-[17px]", pick === o.key ? "text-white/70" : "text-ink-2")}>{o.sub}</div>
           </motion.button>
         ))}
       </div>
@@ -72,7 +72,7 @@ export function BucketQuiz() {
         {chosen && (
           <motion.div key={chosen.key} initial={{ opacity: 0, y: 16, height: 0 }} animate={{ opacity: 1, y: 0, height: "auto" }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }} className="overflow-hidden">
             <div className="mt-3 flex flex-col items-start gap-5 rounded-[28px] bg-brand p-6 text-white sm:flex-row sm:items-center sm:justify-between sm:p-8">
-              <p className="max-w-[640px] text-[19px] leading-relaxed sm:text-[21px]">{chosen.answer}</p>
+              <p className="max-w-[640px] text-[16px] leading-[1.5] sm:text-[21px] sm:leading-relaxed">{chosen.answer}</p>
               <ButtonLink href={`/app?goal=${chosen.key}`} variant="lime" size="md">
                 {chosen.cta}
               </ButtonLink>

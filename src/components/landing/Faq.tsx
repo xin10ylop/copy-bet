@@ -17,8 +17,8 @@ export function Faq() {
     <div className="divide-y divide-line rounded-[32px] bg-white px-6 sm:px-8">
       {QA.map((x, i) => (
         <div key={x.q}>
-          <button onClick={() => setOpen(open === i ? null : i)} className="flex w-full items-center justify-between gap-4 py-6 text-left">
-            <span className="title text-[18px] sm:text-[20px]">{x.q}</span>
+          <button onClick={() => setOpen(open === i ? null : i)} className="flex w-full items-center justify-between gap-4 py-5 text-left sm:py-6">
+            <span className="title text-[16px] sm:text-[20px]">{x.q}</span>
             <motion.span animate={{ rotate: open === i ? 45 : 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-2">
               <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
                 <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -28,7 +28,7 @@ export function Faq() {
           <AnimatePresence initial={false}>
             {open === i && (
               <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }} className="overflow-hidden">
-                <p className="max-w-[720px] pb-6 text-[17px] leading-relaxed text-ink-2">{x.a}</p>
+                <p className="max-w-[720px] pb-6 text-[15px] leading-[1.55] text-ink-2 sm:text-[17px]">{x.a}</p>
               </motion.div>
             )}
           </AnimatePresence>

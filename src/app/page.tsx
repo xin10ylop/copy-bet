@@ -51,14 +51,14 @@ export default async function Landing() {
                 <Eyebrow tone="glass">For bettors who play to win</Eyebrow>
               </Reveal>
               <Reveal delay={0.08}>
-                <h1 className="display mt-6 text-[56px] sm:text-[84px] lg:text-[96px]">
+                <h1 className="display mt-5 text-[50px] sm:text-[84px] lg:text-[96px]">
                   Start winning
                   <br />
                   your bets.
                 </h1>
               </Reveal>
               <Reveal delay={0.16}>
-                <p className="mx-auto mt-6 max-w-[520px] text-[19px] leading-relaxed text-ink-2 sm:text-[21px] lg:mx-0">
+                <p className="mx-auto mt-5 max-w-[520px] text-[16px] leading-[1.5] text-ink-2 sm:mt-6 sm:text-[21px] sm:leading-relaxed lg:mx-0">
                   Follow the best sports bettors in the world. Bet what they bet, the second they bet it, and start turning the games you watch into profit.
                 </p>
               </Reveal>
@@ -141,7 +141,7 @@ export default async function Landing() {
         <div className="mx-auto max-w-[1200px]">
           <Reveal>
             <Eyebrow>Be honest</Eyebrow>
-            <h2 className="display mt-5 max-w-[760px] text-[44px] sm:text-[72px]">Which one sounds like you?</h2>
+            <h2 className="display mt-5 max-w-[760px] text-[36px] sm:text-[72px]">Which one sounds like you?</h2>
           </Reveal>
           <div className="mt-10">
             <BucketQuiz />
@@ -173,7 +173,7 @@ export default async function Landing() {
       {/* ── Rule 3: loss aversion, lighting up word by word ── */}
       <section className="px-4 pt-24 sm:px-8 sm:pt-40">
         <div className="mx-auto max-w-[1100px]">
-          <WordReveal text="Every bet on a hunch is money you hand to *the *bookmaker. The best bettors in the world stopped guessing *years *ago." className="text-[40px] sm:text-[72px]" />
+          <WordReveal text="Every bet on a hunch is money you hand to *the *bookmaker. The best bettors in the world stopped guessing *years *ago." className="text-[32px] sm:text-[72px]" />
         </div>
       </section>
 
@@ -183,9 +183,9 @@ export default async function Landing() {
           <Reveal className="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
             <div>
               <Eyebrow>12 sports · 500+ leagues</Eyebrow>
-              <h2 className="display mt-5 text-[44px] sm:text-[72px]">Win in the sport you love.</h2>
+              <h2 className="display mt-5 text-[36px] sm:text-[72px]">Win in the sport you love.</h2>
             </div>
-            <p className="max-w-[360px] text-[18px] text-ink-2">The best NBA bettor isn&apos;t the best NFL bettor. Pick your sport and follow the people who win there.</p>
+            <p className="max-w-[360px] text-[16px] text-ink-2 sm:text-[18px]">The best NBA bettor isn&apos;t the best NFL bettor. Pick your sport and follow the people who win there.</p>
           </Reveal>
         </div>
         <div className="mt-10 space-y-3">
@@ -200,8 +200,8 @@ export default async function Landing() {
           <div className="mx-auto grid max-w-[1200px] items-center gap-10 lg:grid-cols-2">
             <Reveal>
               <Eyebrow>Real example</Eyebrow>
-              <h2 className="display mt-5 text-[44px] sm:text-[64px]">Same bettor. Very different story.</h2>
-              <p className="mt-5 max-w-[480px] text-[19px] leading-relaxed text-ink-2">Most people follow one number. Winners follow the bets that actually win. See exactly where someone makes their money, and copy only those bets.</p>
+              <h2 className="display mt-5 text-[36px] sm:text-[64px]">Same bettor. Very different story.</h2>
+              <p className="mt-5 max-w-[480px] text-[16px] leading-[1.5] text-ink-2 sm:text-[19px] sm:leading-relaxed">Most people follow one number. Winners follow the bets that actually win. See exactly where someone makes their money, and copy only those bets.</p>
               <ButtonLink href={`/app/bettor/${d.compare.address}?s=${d.compare.sport}&tf=all`} variant="brand" size="md" className="mt-8">
                 See {d.compare.name}&apos;s profile
               </ButtonLink>
@@ -239,12 +239,12 @@ export default async function Landing() {
         <div className="mx-auto max-w-[1200px]">
           <Reveal className="text-center">
             <Eyebrow>Picture this</Eyebrow>
-            <h2 className="display mx-auto mt-5 max-w-[800px] text-[44px] sm:text-[72px]">Six months from now.</h2>
+            <h2 className="display mx-auto mt-5 max-w-[800px] text-[36px] sm:text-[72px]">Six months from now.</h2>
           </Reveal>
           <div className="mt-10 grid gap-3 md:grid-cols-2">
             <Reveal className="rounded-[32px] bg-white p-7 sm:p-10">
               <div className="text-[15px] font-semibold text-ink-3">If nothing changes</div>
-              <ul className="mt-6 space-y-5 text-[19px] text-ink-2">
+              <ul className="mt-6 space-y-4 text-[16px] text-ink-2 sm:space-y-5 sm:text-[19px]">
                 {["You're still betting on gut feeling.", "Still chasing losses after a bad weekend.", "Still watching your balance go the wrong way."].map((t) => (
                   <li key={t} className="flex gap-3">
                     <span className="mt-1.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-loss-soft">
@@ -257,7 +257,7 @@ export default async function Landing() {
             </Reveal>
             <Reveal delay={0.1} className="rounded-[32px] bg-brand p-7 text-white sm:p-10">
               <div className="text-[15px] font-semibold text-white/70">If you start today</div>
-              <ul className="mt-6 space-y-5 text-[19px]">
+              <ul className="mt-6 space-y-4 text-[16px] sm:space-y-5 sm:text-[19px]">
                 {["You bet alongside the best bettors in the world.", "Every bet you place has a winning record behind it.", "You know why you win, and you keep winning."].map((t) => (
                   <li key={t} className="flex gap-3">
                     <Check on="lime" />
@@ -267,7 +267,7 @@ export default async function Landing() {
               </ul>
             </Reveal>
           </div>
-          <Reveal className="mt-8 text-center text-[19px] text-ink-2">Same six months. The only difference is the decision you make today.</Reveal>
+          <Reveal className="mt-8 text-center text-[16px] text-ink-2 sm:text-[19px]">Same six months. The only difference is the decision you make today.</Reveal>
         </div>
       </section>
 
@@ -276,8 +276,8 @@ export default async function Landing() {
         <div className="mx-auto max-w-[1200px]">
           <Reveal className="text-center">
             <Eyebrow>Pricing</Eyebrow>
-            <h2 className="display mx-auto mt-5 max-w-[860px] text-[44px] sm:text-[72px]">Stop betting alone.</h2>
-            <p className="mx-auto mt-5 max-w-[520px] text-[19px] text-ink-2">Start free. Upgrade when you want their bets the second they happen. Cancel anytime.</p>
+            <h2 className="display mx-auto mt-5 max-w-[860px] text-[36px] sm:text-[72px]">Stop betting alone.</h2>
+            <p className="mx-auto mt-5 max-w-[520px] text-[16px] text-ink-2 sm:text-[19px]">Start free. Upgrade when you want their bets the second they happen. Cancel anytime.</p>
           </Reveal>
           <div className="mx-auto mt-10 grid max-w-[920px] gap-3 md:grid-cols-2">
             <Reveal className="flex flex-col rounded-[32px] bg-white p-7 sm:p-9">
@@ -285,7 +285,7 @@ export default async function Landing() {
               <div className="mt-4 flex items-baseline gap-1">
                 <span className="display text-[56px]">$0</span>
               </div>
-              <ul className="mt-6 mb-2 space-y-3 text-[17px] text-ink-2">
+              <ul className="mt-6 mb-2 space-y-3 text-[15px] text-ink-2 sm:text-[17px]">
                 {["See every winning bettor's full record", "Filters and custom search", "Follow up to 3 bettors", "Their bets on Telegram, 10 minutes later"].map((t) => (
                   <li key={t} className="flex gap-3">
                     <Check /> {t}
@@ -305,7 +305,7 @@ export default async function Landing() {
                 <span className="display text-[56px]">$29</span>
                 <span className="text-white/70">/ month</span>
               </div>
-              <ul className="mt-6 space-y-3 text-[17px]">
+              <ul className="mt-6 space-y-3 text-[15px] sm:text-[17px]">
                 {["Their bets within seconds, before the odds move", "Follow as many winners as you like", "Choose exactly which bets you get", "Saved searches"].map((t) => (
                   <li key={t} className="flex gap-3">
                     <Check on="lime" /> {t}
@@ -325,7 +325,7 @@ export default async function Landing() {
       <section id="faq" className="scroll-mt-24 px-4 pt-24 sm:px-8 sm:pt-32">
         <div className="mx-auto max-w-[920px]">
           <Reveal>
-            <h2 className="display text-center text-[44px] sm:text-[72px]">Questions</h2>
+            <h2 className="display text-center text-[36px] sm:text-[72px]">Questions</h2>
           </Reveal>
           <div className="mt-10">
             <Faq />
@@ -337,8 +337,8 @@ export default async function Landing() {
       <section className="relative mt-24 overflow-hidden bg-lime px-4 pt-24 pb-40 text-center text-[#10173a] sm:mt-32 sm:pt-32 sm:pb-56">
         <RisingMascot />
         <Reveal className="relative">
-          <p className="text-[17px] font-medium opacity-70">For bettors who do the homework.</p>
-          <h2 className="display mx-auto mt-5 max-w-[1000px] text-[56px] sm:text-[104px]">
+          <p className="text-[15px] font-medium opacity-70 sm:text-[17px]">For bettors who do the homework.</p>
+          <h2 className="display mx-auto mt-5 max-w-[1000px] text-[44px] sm:text-[104px]">
             Start winning.
             <br />
             Follow <InlineMascot copyColor="#FFFFFF" /> the best.
