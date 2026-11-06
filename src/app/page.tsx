@@ -72,7 +72,7 @@ export default async function Landing() {
               </Reveal>
             </div>
             <Reveal delay={0.2} y={60}>
-              <HeroPhone bettors={d.phone.bettors} alert={d.phone.alert} compare={d.compare} />
+              <HeroPhone bettors={d.phone.bettors} alert={d.phone.alert} compare={d.phone.compare} />
             </Reveal>
           </div>
         </div>

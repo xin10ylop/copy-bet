@@ -48,7 +48,6 @@ export function HeroPhone({ bettors, alert, compare }: { bettors: PhoneBettor[];
 
   const star = bettors[0];
   if (!star) return null;
-  const cmp = compare ?? { sport: star.sport, sportRoi: star.roi, otherRoi: star.roi / 2, sportBets: star.bets };
 
   return (
     <div className="relative mx-auto h-[560px] w-[278px] rounded-[50px] bg-[#16161a] p-[10px] shadow-[0_50px_100px_-30px_rgba(58,91,255,.45),0_30px_60px_-30px_rgba(0,0,0,.4)] sm:h-[600px] sm:w-[296px]">
@@ -64,8 +63,8 @@ export function HeroPhone({ bettors, alert, compare }: { bettors: PhoneBettor[];
 
         <AnimatePresence mode="popLayout" initial={false}>
           {step === 0 && <Discover key="d" bettors={bettors} />}
-          {(step === 1 || step === 3) && <Profile key="p" b={star} cmp={cmp} dim={step === 3} />}
-          {step === 2 && <Follow key="f" b={star} sport={cmp.sport} />}
+          {(step === 1 || step === 3) && <Profile key="p" b={star} cmp={compare} dim={step === 3} />}
+          {step === 2 && <Follow key="f" b={star} sport={compare?.sport ?? star.sport} />}
         </AnimatePresence>
 
         {/* tap indicator */}
@@ -156,7 +155,7 @@ function Discover({ bettors }: { bettors: PhoneBettor[] }) {
   );
 }
 
-function Profile({ b, cmp, dim }: { b: PhoneBettor; cmp: PhoneCompare; dim: boolean }) {
+function Profile({ b, cmp, dim }: { b: PhoneBettor; cmp: PhoneCompare | null; dim: boolean }) {
   return (
     <Screen className={clsx("transition-[filter] duration-500", dim && "blur-[1.5px] brightness-[.97]")}>
       <div className="flex items-center gap-2.5">
@@ -166,6 +165,7 @@ function Profile({ b, cmp, dim }: { b: PhoneBettor; cmp: PhoneCompare; dim: bool
           <div className="text-[10.5px] text-[#545c80]">{b.bets} settled bets</div>
         </div>
       </div>
+      {cmp && (
       <div className="mt-3 overflow-hidden rounded-[18px] bg-white">
         <div className="grid grid-cols-2 text-[10.5px] font-semibold">
           <div className="bg-[#3A5BFF] px-3 py-2 text-white">{sportLabel(cmp.sport)} only</div>
@@ -182,6 +182,7 @@ function Profile({ b, cmp, dim }: { b: PhoneBettor; cmp: PhoneCompare; dim: bool
           </div>
         </div>
       </div>
+      )}
       <div className="mt-2 grid grid-cols-3 gap-1.5">
         {[
           ["Profit", formatUsd(b.profit), b.profit >= 0],
@@ -194,6 +195,8 @@ function Profile({ b, cmp, dim }: { b: PhoneBettor; cmp: PhoneCompare; dim: bool
           </div>
         ))}
       </div>
+      {cmp && (
+        <>
       <div className="mt-3 text-[12px] font-semibold">Sports they win at</div>
       <div className="mt-1.5 space-y-1.5">
         {[
@@ -216,6 +219,8 @@ function Profile({ b, cmp, dim }: { b: PhoneBettor; cmp: PhoneCompare; dim: bool
           </div>
         ))}
       </div>
+        </>
+      )}
       <div className="absolute inset-x-3.5 bottom-4 flex h-11 items-center justify-center rounded-full bg-[#3A5BFF] text-[13px] font-semibold text-white shadow-[0_10px_24px_-10px_rgba(58,91,255,.7)]">Follow {b.name.length > 14 ? "" : b.name}</div>
     </Screen>
   );

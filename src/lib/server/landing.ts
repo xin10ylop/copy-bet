@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { bettorStats, landingStats } from "./stats";
-import type { PhoneAlert, PhoneBettor } from "@/components/landing/HeroPhone";
+import type { PhoneAlert, PhoneBettor, PhoneCompare } from "@/components/landing/HeroPhone";
 
 export interface CompareExample {
   name: string;
@@ -16,7 +16,7 @@ export interface LandingData {
   tracked: number;
   perSport: Record<string, { bettors: number; bets: number; best: number }>;
   topProfit30d: number | null;
-  phone: { bettors: PhoneBettor[]; alert: PhoneAlert | null };
+  phone: { bettors: PhoneBettor[]; alert: PhoneAlert | null; compare: PhoneCompare | null };
   compare: CompareExample | null;
 }
 
@@ -48,13 +48,21 @@ export async function getLandingData(): Promise<LandingData> {
     // The phone demo follows the bettor of the "real example" when there is one, else this month's #1.
     const star = (compare && top.find((b) => b.address === compare!.address)) ?? top[0];
     const ordered = star ? [star, ...top.filter((b) => b !== star)] : top;
-    const phoneBettors: PhoneBettor[] = ordered.slice(0, 4).map((b) => ({ address: b.address, name: b.name, profileImage: b.profileImage, roi: b.roi, profit: b.profit, winRate: b.winRate, bets: b.bets, sport: b === star && compare ? compare.sport : (b.topSports[0]?.sport ?? "other") }));
+    // The demo's "one sport vs everything else" card uses the star's real all-time split.
+    let phoneCompare: PhoneCompare | null = compare && star && compare.address === star.address ? { sport: compare.sport, sportRoi: compare.sportRoi, otherRoi: compare.otherRoi, sportBets: compare.sportBets } : null;
+    if (!phoneCompare && star) {
+      const all = await bettorStats(star.address, { sports: [], timing: [], timeframe: "all" });
+      const best = all.sports.filter((x) => x.bets >= 10).sort((a, z) => z.roi - a.roi)[0];
+      const restStaked = best ? all.staked - best.staked : 0;
+      if (best && restStaked > 0 && all.bets - best.bets >= 10) phoneCompare = { sport: best.sport, sportRoi: best.roi, otherRoi: (100 * (all.profit - best.profit)) / restStaked, sportBets: best.bets };
+    }
+    const phoneBettors: PhoneBettor[] = ordered.slice(0, 4).map((b) => ({ address: b.address, name: b.name, profileImage: b.profileImage, roi: b.roi, profit: b.profit, winRate: b.winRate, bets: b.bets, sport: b === star && phoneCompare ? phoneCompare.sport : (b.topSports[0]?.sport ?? "other") }));
     const starAlert = star ? await db.openPosition.findFirst({ where: { bettorId: star.address, avgPrice: { gt: 0.2, lt: 0.8 } }, orderBy: { entryAt: "desc" } }) : null;
     const alert: PhoneAlert | null = starAlert ? { league: starAlert.league, title: starAlert.title, outcome: starAlert.outcome, price: starAlert.avgPrice, usd: starAlert.cost } : (alerts[0] ?? null);
-    const data: LandingData = { tracked, perSport, topProfit30d: top[0]?.profit ?? null, phone: { bettors: phoneBettors, alert }, compare };
+    const data: LandingData = { tracked, perSport, topProfit30d: top[0]?.profit ?? null, phone: { bettors: phoneBettors, alert, compare: phoneCompare }, compare };
     cache = { at: Date.now(), data };
     return data;
   } catch {
-    return { tracked: 0, perSport: {}, topProfit30d: null, phone: { bettors: [], alert: null }, compare: null };
+    return { tracked: 0, perSport: {}, topProfit30d: null, phone: { bettors: [], alert: null, compare: null }, compare: null };
   }
 }
