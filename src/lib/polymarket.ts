@@ -88,13 +88,28 @@ interface Page<T> {
   pagination?: { has_more: boolean; next_cursor: string | null };
 }
 
+// Polymarket rate-limits by IP. Every request in this process goes through one pacer, and a 429
+// pauses all of them (not just the one that got it), so parallel work can't keep hammering the API.
+const MIN_GAP_MS = 120;
+let nextSlot = 0;
+let coolUntil = 0;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+async function pace() {
+  const now = Date.now();
+  const at = Math.max(now, nextSlot, coolUntil);
+  nextSlot = at + MIN_GAP_MS;
+  if (at > now) await sleep(at - now);
+}
+
 async function getJson<T>(url: string, attempt = 0): Promise<T> {
+  await pace();
   const res = await fetch(url, { cache: "no-store", headers: { accept: "application/json" } });
   if ((res.status === 429 || res.status >= 500) && attempt < 9) {
     // Respect Retry-After when given, otherwise exponential backoff with jitter.
     const retryAfter = Number(res.headers.get("retry-after"));
     const wait = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 1000 * 2 ** attempt + Math.random() * 500;
-    await new Promise((r) => setTimeout(r, Math.min(wait, 45_000)));
+    if (res.status === 429) coolUntil = Math.max(coolUntil, Date.now() + Math.min(wait, 45_000));
+    await sleep(Math.min(wait, 45_000));
     return getJson<T>(url, attempt + 1);
   }
   if (!res.ok) throw new Error(`Polymarket ${res.status} for ${url}`);

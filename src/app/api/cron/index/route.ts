@@ -11,7 +11,7 @@ export const maxDuration = 300;
 
 /** Stop starting new bettors and hand over to the next run after this long (in-flight ones may finish). */
 const HANDOVER_MS = 200_000;
-const SHARDS = 3;
+const SHARDS = 2;
 const MAX_HOPS = 30;
 /** Bettors refreshed in the last REFRESH_MS are skipped. */
 const REFRESH_MS = 20 * 3600_000;
@@ -70,7 +70,10 @@ export async function GET(req: Request) {
     if (!finished) await handOver(); // still finishing in-flight bettors: let the next run carry on
     const r = await work.catch((e) => (console.log(tag, "failed", e), null));
     console.log(tag, "done", r);
-    if (!r || r.remaining > 0) await handOver();
+    if (r && r.remaining === 0) return; // everyone is fresh
+    // Nothing got through (rate-limited, or the list itself failed to load): give Polymarket a minute first.
+    if (!handedOver && (!r || r.indexed === 0)) await new Promise((ok) => setTimeout(ok, 60_000));
+    await handOver();
   });
 
   return Response.json({ started: true, shard, of, hop });

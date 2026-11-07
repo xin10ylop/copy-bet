@@ -307,6 +307,7 @@ export async function indexLeaderboards(
   const queue = stale.slice(0, maxBettors);
   log(`tracked: ${hints.size} bettors; shard ${shard}/${of}: ${stale.length} to index`);
   let done = 0;
+  let failed = 0;
   await Promise.all(
     Array.from({ length: concurrency }, async () => {
       for (let item = queue.shift(); item && Date.now() < deadline; item = queue.shift()) {
@@ -315,10 +316,11 @@ export async function indexLeaderboards(
           const r = await indexBettor(address, hint);
           log(`[${++done}] ${address} ${r.settled} settled, ${r.open} open${r.isMarketMaker ? " (market maker)" : ""}${r.historyTruncated ? " (history truncated)" : ""}`);
         } catch (e) {
+          failed++;
           log(`[${++done}] ${address} failed: ${(e as Error).message}`);
         }
       }
     }),
   );
-  return { total: hints.size, stale: stale.length, indexed: done, remaining: stale.length - done };
+  return { total: hints.size, stale: stale.length, indexed: done - failed, failed, remaining: stale.length - (done - failed) };
 }
