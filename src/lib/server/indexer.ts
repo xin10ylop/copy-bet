@@ -11,8 +11,8 @@ const RECENT_BETS_KEPT = 30;
 /** Largest open positions stored per bettor (the profile shows up to 60). */
 const OPEN_KEPT = 100;
 /** Position history read per bettor. Pages are 1,000 rows; very active accounts have more. */
-const MAX_CLOSED = 120_000;
-const MAX_OPEN = 20_000;
+const MAX_CLOSED = 50_000;
+const MAX_OPEN = 10_000;
 /** Daily rows are kept for this many days (7d / 30d windows); older ones are merged per month. */
 const DAILY_DAYS = 35;
 

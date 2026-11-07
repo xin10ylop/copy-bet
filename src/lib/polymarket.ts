@@ -145,8 +145,16 @@ export function sportsLeaderboard(period: TimePeriod, sortBy: "PNL" | "VOLUME" =
   return paginate<LeaderboardEntry>("/leaderboard", { time_period: period, category: "sports", sort_by: sortBy, limit: Math.min(max, 500) }, max);
 }
 
-export function positions(user: string, status: Position["status"], max = 2000) {
-  return paginate<Position>("/positions", { user, status, limit: 1000, sort_by: "TIMESTAMP", sort_direction: "DESC" }, max);
+const POSITION_FIELDS = [
+  "token_id", "condition_id", "current_size", "avg_price", "entry_cost_usdc", "entry_fees_usdc", "total_cost_usdc", "current_price", "current_value",
+  "total_size", "realized_pnl", "unrealized_pnl", "total_pnl", "percent_realized_pnl", "status", "redeemable", "mergeable", "title", "icon",
+  "event_slug", "outcome", "outcome_index", "end_date", "last_event_at", "first_entry_at", "name", "profile_image", "verified",
+] as const;
+
+export async function positions(user: string, status: Position["status"], max = 2000): Promise<Position[]> {
+  const rows = await paginate<Position>("/positions", { user, status, limit: 1000, sort_by: "TIMESTAMP", sort_direction: "DESC" }, max);
+  // Keep only the fields we use: very active accounts return tens of thousands of rows.
+  return rows.map((r) => Object.fromEntries(POSITION_FIELDS.map((k) => [k, (r as unknown as Record<string, unknown>)[k]])) as unknown as Position);
 }
 
 export function trades(user: string, max = 50) {
