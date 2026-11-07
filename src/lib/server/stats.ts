@@ -234,7 +234,7 @@ export async function bettorProfile(address: string, f: BettorFilter) {
     everything: everything ?? filtered,
     narrowed,
     positions: (await withBook(positions)).map((p) => ({ ...p, entryAt: p.entryAt.toISOString(), gameStartAt: p.gameStartAt?.toISOString() ?? null })),
-    recent: (await withBook(recent)).map((r) => ({
+    recent: (await withBook(recent.map((r) => ({ ...r, outcomeIndex: Number(r.id.split(":")[2]) })))).map((r) => ({
       id: r.id,
       sport: r.sport,
       league: r.league,

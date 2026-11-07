@@ -19,6 +19,7 @@ interface FeedItem {
   side: "BUY" | "SELL";
   title: string;
   outcome: string;
+  outcomeIndex: number;
   bet: { selection: string; market: string; event: string };
   price: number;
   usd: number;
@@ -123,8 +124,9 @@ export default function PortfolioPage() {
                       </div>
                       <div className="mt-1.5 flex items-center gap-2">
                         <span className={clsx("rounded-full px-2 py-0.5 text-[11px] font-bold", it.side === "BUY" ? "bg-win-soft text-win" : "bg-loss-soft text-loss")}>{it.side === "BUY" ? "BET" : "CASHED OUT"}</span>
-                        <span className="min-w-0 truncate text-[15px] font-semibold">
-                          {it.bet.selection} <span className="num text-ink-3">@ {formatOdds(it.price)}</span>
+                        <span className="flex min-w-0 items-baseline gap-1.5 text-[15px] font-semibold">
+                          <span className="min-w-0 truncate">{it.bet.selection}</span>
+                          {it.side === "BUY" && <span className="num shrink-0 text-ink-3">@ {formatOdds(it.price)}</span>}
                         </span>
                         <span className="num ml-auto shrink-0 text-[15px] font-semibold">{formatUsd(it.usd)}</span>
                       </div>

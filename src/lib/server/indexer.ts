@@ -9,7 +9,7 @@ import { timingFor } from "../filters";
 const MIN_STAKE = 1; // USD — ignore dust
 const RECENT_BETS_KEPT = 50;
 
-async function eventMeta(slugs: string[]) {
+export async function eventMeta(slugs: string[]) {
   const unique = [...new Set(slugs)];
   const known = await db.eventMeta.findMany({ where: { slug: { in: unique } } });
   const map = new Map(known.map((e) => [e.slug, e]));
@@ -167,6 +167,7 @@ export async function indexBettor(addressRaw: string, hint: IndexHint = {}) {
       eventSlug: p.event_slug,
       title: p.title,
       outcome: p.outcome,
+      outcomeIndex: p.outcome_index,
       size: p.current_size,
       avgPrice: p.avg_price,
       cost: p.entry_cost_usdc || p.avg_price * p.current_size,

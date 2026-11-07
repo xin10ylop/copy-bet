@@ -88,6 +88,8 @@ model OpenPosition {
   eventSlug    String
   title        String
   outcome      String
+  /// position of the answer in the market's outcome list (0 = the side named in the title)
+  outcomeIndex Int?
   size         Float
   avgPrice     Float
   cost         Float
@@ -169,6 +171,7 @@ model AlertLog {
   txHash    String
   title     String
   outcome   String
+  outcomeIndex Int?
   side      String
   price     Float
   usdSize   Float

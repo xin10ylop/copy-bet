@@ -114,9 +114,9 @@ export function ArtFollow() {
 /** Peach card: their bets dropping in as notifications. */
 export function ArtAlerts({ alert, name, sport }: { alert: PhoneAlert | null; name: string; sport: string }) {
   const { ref, step } = useLoop(1800, 3);
-  const a = alert ?? { league: "nba", title: "Lakers vs Celtics", outcome: "Lakers to win", market: "Moneyline", price: 0.47, usd: 2500 };
+  const a = alert ?? { league: "nba", title: "Lakers vs Celtics", outcome: "Lakers", market: "Moneyline", price: 0.47, usd: 2500 };
   const items = [
-    { t: `${leagueLabel(a.league)} · ${a.title}`, p: `${a.outcome} @ ${formatOdds(a.price)} · ${formatUsd(a.usd)}` },
+    { t: `${leagueLabel(a.league)} · ${a.market} · ${a.title}`, p: `${a.outcome} @ ${formatOdds(a.price)} · ${formatUsd(a.usd)}` },
     { t: "Your filter matched", p: `${sportLabel(sport)} · big bet` },
     { t: "Placed seconds ago", p: "Your move" },
   ];
@@ -201,7 +201,7 @@ export function ArtMarkets() {
 /** Lavender card: a bet slip at "your bookmaker". */
 export function ArtSlip({ alert }: { alert: PhoneAlert | null }) {
   const { ref, step } = useLoop(1400, 4);
-  const a = alert ?? { league: "nba", title: "Lakers vs Celtics", outcome: "Lakers to win", market: "Moneyline", price: 0.47, usd: 2500 };
+  const a = alert ?? { league: "nba", title: "Lakers vs Celtics", outcome: "Lakers", market: "Moneyline", price: 0.47, usd: 2500 };
   const odds = Number(formatOdds(a.price)) || 2;
   return (
     <div ref={ref} className="absolute inset-0 flex items-end justify-center p-5">
@@ -210,7 +210,10 @@ export function ArtSlip({ alert }: { alert: PhoneAlert | null }) {
           <span>THEIR PICK</span>
           <span>Just now</span>
         </div>
-        <div className="mt-2 text-[15px] font-semibold">{a.outcome}</div>
+        <div className="mt-2 flex items-baseline gap-1.5 text-[15px] font-semibold">
+          <span className="min-w-0 truncate">{a.outcome}</span>
+          <span className="shrink-0 text-[#8a91ad]">@ {odds.toFixed(2)}</span>
+        </div>
         <div className="truncate text-[12.5px] text-[#545c80]">
           {a.market} · {a.title}
         </div>

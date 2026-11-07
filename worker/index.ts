@@ -78,6 +78,7 @@ interface PendingBet {
   side: "BUY" | "SELL";
   title: string;
   outcome: string;
+  outcomeIndex: number;
   eventSlug: string;
   txHash: string;
   shares: number;
@@ -96,7 +97,7 @@ function onTrade(t: RtdsTrade) {
     prev.usd += t.size * t.price;
     return;
   }
-  pending.set(key, { wallet, side: t.side, title: t.title, outcome: t.outcome, eventSlug: t.eventSlug, txHash: t.transactionHash, shares: t.size, usd: t.size * t.price, firstSeen: Date.now() });
+  pending.set(key, { wallet, side: t.side, title: t.title, outcome: t.outcome, outcomeIndex: t.outcomeIndex, eventSlug: t.eventSlug, txHash: t.transactionHash, shares: t.size, usd: t.size * t.price, firstSeen: Date.now() });
   setTimeout(() => {
     const bet = pending.get(key);
     pending.delete(key);
@@ -156,6 +157,7 @@ async function handleBet(bet: PendingBet) {
           txHash: bet.txHash,
           title: bet.title,
           outcome: bet.outcome,
+          outcomeIndex: bet.outcomeIndex,
           side: bet.side,
           price,
           usdSize: bet.usd,
@@ -243,18 +245,19 @@ async function sendDue() {
   }
 }
 
-async function formatAlert(a: { bettorId: string; side: string; title: string; outcome: string; price: number; usdSize: number; eventSlug: string; sport: string | null; detectedAt: Date; sendAt: Date; user: { plan: string } }) {
+async function formatAlert(a: { bettorId: string; side: string; title: string; outcome: string; outcomeIndex: number | null; price: number; usdSize: number; eventSlug: string; sport: string | null; detectedAt: Date; sendAt: Date; user: { plan: string } }) {
   const bettor = await db.bettor.findUnique({ where: { address: a.bettorId } });
   const name = escapeHtml(displayName(bettor?.name, bettor?.pseudonym, a.bettorId));
   const cls = classifyEvent(a.eventSlug, a.title);
   const ev = await eventInfo(a.eventSlug);
   const record = a.sport ? await recordLine(a.bettorId, a.sport) : "";
-  const bet = toBookmakerBet(a.title, a.outcome, ev.title, a.sport ?? undefined);
+  const bet = toBookmakerBet(a.title, a.outcome, ev.title, a.sport ?? undefined, a.outcomeIndex);
+  const sell = a.side === "SELL";
   const lines = [
-    `${a.side === "BUY" ? "🟢" : "🔴"} <b>${a.side === "BUY" ? "New bet" : "Cashed out"} · ${name}</b>`,
-    `${escapeHtml(cls ? leagueLabel(cls.league) : "")} · ${escapeHtml(bet.event || a.title)}${startsIn(ev.start)}`,
-    `<b>${escapeHtml(bet.selection)} @ ${formatOdds(a.price)}</b>`,
-    `${escapeHtml(bet.market)} · ${formatUsd(a.usdSize, false)} staked`,
+    `${sell ? "🔴" : "🟢"} <b>${sell ? "Cashed out" : "New bet"} · ${name}</b>`,
+    sell ? `<b>${escapeHtml(bet.selection)}</b>` : `<b>${escapeHtml(bet.selection)} @ ${formatOdds(a.price)}</b>`,
+    `${escapeHtml([cls ? leagueLabel(cls.league) : "", bet.market, bet.event || a.title].filter(Boolean).join(" · "))}${startsIn(ev.start)}`,
+    sell ? `${formatUsd(a.usdSize, false)} cashed out at ${Math.round(a.price * 100)}¢` : `${formatUsd(a.usdSize, false)} staked`,
   ];
   if (record) lines.push(escapeHtml(record));
   if (a.user.plan !== "pro") {

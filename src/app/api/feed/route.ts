@@ -35,8 +35,10 @@ export async function GET() {
           side: t.side,
           title: t.title,
           outcome: t.outcome,
+          outcomeIndex: t.outcome_index,
           price: t.price,
           usd: t.size * t.price,
+          shares: t.size,
           sport: cls!.sport,
           league: cls!.league,
           eventSlug: t.event_slug,
@@ -48,8 +50,11 @@ export async function GET() {
   const merged = new Map<string, (typeof items)[number]>();
   for (const it of items) {
     const prev = merged.get(it.id);
-    if (prev) prev.usd += it.usd;
-    else merged.set(it.id, { ...it });
+    if (prev) {
+      prev.usd += it.usd;
+      prev.shares += it.shares;
+      prev.price = prev.shares > 0 ? prev.usd / prev.shares : prev.price; // volume-weighted
+    } else merged.set(it.id, { ...it });
   }
   return Response.json({ items: await withBook([...merged.values()].slice(0, 60)) });
 }

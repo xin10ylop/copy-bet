@@ -308,8 +308,9 @@ function PositionsBlock({ positions, total }: { positions: Data["positions"]; to
                 <SportIcon sport={p.sport} size={20} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[15px] font-semibold">
-                  {p.bet.selection} <span className="num text-ink-3">@ {formatOdds(p.avgPrice)}</span>
+                <span className="flex items-baseline gap-1.5 text-[15px] font-semibold">
+                  <span className="min-w-0 truncate">{p.bet.selection}</span>
+                  <span className="num shrink-0 text-ink-3">@ {formatOdds(p.avgPrice)}</span>
                 </span>
                 <span className="block truncate text-[13px] text-ink-3">
                   {p.bet.market} · {p.bet.event || leagueLabel(p.league)}{p.gameStartAt ? ` · ${gameTime(p.gameStartAt)}` : ""}

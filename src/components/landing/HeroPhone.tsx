@@ -95,7 +95,7 @@ export function HeroPhone({ bettors, alert, compare }: { bettors: PhoneBettor[];
               </div>
               <div className="mt-1.5 text-[13px] leading-snug font-semibold">New bet from {star.name}</div>
               <div className="text-[12px] leading-snug text-[#545c80]">
-                {leagueLabel(alert.league)} · {alert.title} · {alert.market}
+                {leagueLabel(alert.league)} · {alert.market} · {alert.title}
               </div>
               <div className="mt-0.5 text-[12.5px] font-semibold">
                 {alert.outcome} @ {formatOdds(alert.price)} · {formatUsd(alert.usd)}
