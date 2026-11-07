@@ -2,9 +2,9 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "CopyBet: start winning your bets",
+  title: "CopyBet: bet like the best",
   description:
-    "Start winning your bets. Follow the best sports bettors in the world and bet what they bet, the second they bet it.",
+    "Get an alert the second top bettors place a bet. Every record verified.",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "CopyBet", statusBarStyle: "default" },
   icons: { icon: "/icon.svg", apple: "/icon.svg" },

@@ -51,7 +51,7 @@ export default function AccountPage() {
           <span className="rounded-full bg-lime px-3 py-1 text-[13px] font-semibold text-[#10173a]">{pro ? "Active" : "$29 / month"}</span>
         </div>
         <ul className="mt-5 space-y-2.5 text-[16px]">
-          {["Their bets within seconds, before the odds move", "Follow as many winners as you like", "Pick exactly which of their bets you get", "Saved searches"].map((t) => (
+          {["Their bets within seconds, before the odds move", "Follow as many bettors as you like", "Pick exactly which of their bets you get", "Saved searches"].map((t) => (
             <li key={t} className="flex gap-3">
               <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-lime">
                 <svg width="10" height="10" viewBox="0 0 16 16" aria-hidden>
@@ -64,7 +64,7 @@ export default function AccountPage() {
         </ul>
         {!pro && (
           <>
-            <p className="mt-5 text-[15px] text-white/75">Less than a single bet. One winning pick pays for it. Cancel anytime.</p>
+            <p className="mt-5 text-[15px] text-white/75">Less than a dollar a day. Cancel anytime.</p>
             {PAYMENT_LINK ? (
               <a href={`${PAYMENT_LINK}${PAYMENT_LINK.includes("?") ? "&" : "?"}client_reference_id=${me?.user?.id ?? ""}`} className="press mt-5 flex h-14 w-full items-center justify-center rounded-full bg-lime text-[17px] font-semibold text-[#10173a]">
                 Go Pro
@@ -87,7 +87,7 @@ export default function AccountPage() {
           <Logo size={26} />
         </Link>
         <p className="mt-3 text-[13px] leading-relaxed text-ink-3">
-          Records come from real, settled bets placed with real money. Past results don&apos;t guarantee future results. Only bet what you can afford to lose, where it&apos;s legal for you. 18+. Please gamble responsibly.
+          For informational purposes. Records come from real, settled bets placed with real money. Past results don&apos;t guarantee future results. Only bet what you can afford to lose, where it&apos;s legal for you. 18+. Please gamble responsibly.
         </p>
       </section>
     </div>

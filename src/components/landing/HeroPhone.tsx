@@ -197,7 +197,7 @@ function Profile({ b, cmp, dim }: { b: PhoneBettor; cmp: PhoneCompare | null; di
       </div>
       {cmp && (
         <>
-      <div className="mt-3 text-[12px] font-semibold">Sports they win at</div>
+      <div className="mt-3 text-[12px] font-semibold">Their best sports</div>
       <div className="mt-1.5 space-y-1.5">
         {[
           [cmp.sport, cmp.sportRoi, 1],

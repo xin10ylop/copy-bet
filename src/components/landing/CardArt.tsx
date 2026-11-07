@@ -140,29 +140,30 @@ export function ArtAlerts({ alert, name, sport }: { alert: PhoneAlert | null; na
   );
 }
 
-/** White card on the blue section: the month's biggest win. */
-export function ArtBigWin({ amount }: { amount: number | null }) {
+/** White card: a record filling in, bet by bet — wins and losses, nothing hidden. */
+export function ArtRecord() {
   const { ref, inView } = useLoop(9999, 1);
-  const coins = [
-    { x: "12%", y: "18%", s: 46, d: 0 },
-    { x: "70%", y: "8%", s: 36, d: 0.4 },
-    { x: "78%", y: "52%", s: 52, d: 0.8 },
-    { x: "8%", y: "60%", s: 30, d: 1.2 },
-  ];
+  // An illustrative pattern of settled bets (no numbers, no claims).
+  const pattern = "WWLWLWWLWWLWLWWWLWLW".split("");
   return (
-    <div ref={ref} className="absolute inset-0">
-      {coins.map((c, i) => (
-        <motion.span key={i} className="absolute flex items-center justify-center rounded-full bg-[radial-gradient(circle_at_35%_30%,#f1ffb8,#d4ff4f_55%,#a9d51f)] font-bold text-[#10173a] shadow-[0_8px_18px_-6px_rgba(16,23,58,.35)]" style={{ left: c.x, top: c.y, width: c.s, height: c.s, fontSize: c.s * 0.45 }} animate={{ y: [0, -10, 0], rotate: [0, 12, 0] }} transition={{ duration: 3, repeat: Infinity, delay: c.d, ease: "easeInOut" }}>
-          $
-        </motion.span>
-      ))}
-      <div className="absolute inset-x-0 bottom-8 text-center">
-        <div className="display num text-[56px] leading-none text-[#0a7f4c]">{amount ? <Count to={amount} format={(n) => `+${formatUsd(n)}`} run={inView} /> : "—"}</div>
-        <div className="mt-2 text-[14px] font-medium text-[#545c80]">won in the last 30 days</div>
+    <div ref={ref} className="absolute inset-0 flex flex-col justify-end p-5">
+      <div className="absolute top-1 left-1/2 -translate-x-1/2">
+        <Mascot size={96} animate />
       </div>
-      <div className="absolute bottom-[38%] left-1/2 -translate-x-1/2">
-        <Mascot size={84} animate />
+      <div className="grid grid-cols-5 gap-1.5">
+        {pattern.map((r, i) => (
+          <motion.span
+            key={i}
+            initial={{ opacity: 0, scale: 0.4 }}
+            animate={inView ? { opacity: 1, scale: 1 } : {}}
+            transition={{ delay: 0.2 + i * 0.06, type: "spring", stiffness: 400, damping: 20 }}
+            className={clsx("flex h-9 items-center justify-center rounded-xl text-[13px] font-bold", r === "W" ? "bg-[#dbf6e9] text-[#0a7f4c]" : "bg-[#fde3e8] text-[#c93a52]")}
+          >
+            {r}
+          </motion.span>
+        ))}
       </div>
+      <div className="mt-3 text-[13px] font-medium text-[#545c80]">Every settled bet. Verified, never edited.</div>
     </div>
   );
 }
@@ -206,8 +207,8 @@ export function ArtSlip({ alert }: { alert: PhoneAlert | null }) {
     <div ref={ref} className="absolute inset-0 flex items-end justify-center p-5">
       <motion.div initial={{ y: 30, rotate: -3 }} animate={{ y: 0, rotate: -3 }} className="w-full rounded-[22px] bg-white p-4 text-[#10173a] shadow-[0_20px_40px_-18px_rgba(16,23,58,.45)]">
         <div className="flex items-center justify-between text-[12px] font-semibold text-[#8a91ad]">
-          <span>YOUR BOOKMAKER</span>
-          <span>Bet slip</span>
+          <span>THEIR PICK</span>
+          <span>Just now</span>
         </div>
         <div className="mt-2 text-[15px] font-semibold">{a.outcome}</div>
         <div className="truncate text-[12.5px] text-[#545c80]">
@@ -219,16 +220,16 @@ export function ArtSlip({ alert }: { alert: PhoneAlert | null }) {
             <div className="text-[15px] font-semibold">{odds.toFixed(2)}</div>
           </div>
           <div className="rounded-xl bg-[#f1f4ff] py-2">
-            <div className="text-[10.5px] text-[#8a91ad]">Stake</div>
-            <div className="text-[15px] font-semibold">$100</div>
+            <div className="text-[10.5px] text-[#8a91ad]">League</div>
+            <div className="truncate px-1 text-[15px] font-semibold">{leagueLabel(a.league)}</div>
           </div>
-          <div className="rounded-xl bg-[#dbf6e9] py-2">
-            <div className="text-[10.5px] text-[#0a7f4c]">To win</div>
-            <div className="text-[15px] font-semibold text-[#0a7f4c]">${Math.round(100 * odds)}</div>
+          <div className="rounded-xl bg-[#f1f4ff] py-2">
+            <div className="text-[10.5px] text-[#8a91ad]">Their stake</div>
+            <div className="text-[15px] font-semibold">{formatUsd(a.usd)}</div>
           </div>
         </div>
         <motion.div animate={step === 3 ? { scale: [1, 0.96, 1] } : {}} className={clsx("mt-3 flex h-11 items-center justify-center rounded-full text-[14px] font-semibold transition-colors duration-500", step === 3 ? "bg-[#0fa968] text-white" : "bg-[#1652f0] text-white")}>
-          {step === 3 ? "Bet placed ✓" : "Place bet"}
+          {step === 3 ? "Your call ✓" : "Bet or skip: you decide"}
         </motion.div>
       </motion.div>
     </div>

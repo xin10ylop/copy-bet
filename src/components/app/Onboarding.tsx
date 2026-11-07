@@ -8,7 +8,7 @@ import { SPORTS, type SportKey } from "@/lib/sports";
 
 // Rule 5: bucket questions. Two taps, and the app is already about them.
 const GOALS = [
-  { key: "find", title: "Find winners to follow", sub: "Show me who's actually good" },
+  { key: "find", title: "Find top bettors to follow", sub: "Show me who's actually good" },
   { key: "fast", title: "Get their bets instantly", sub: "Before the price moves" },
   { key: "check", title: "Check a bettor I know", sub: "Is their record real?" },
 ];

@@ -2,7 +2,7 @@ import { Nav } from "@/components/landing/Nav";
 import { Ribbons } from "@/components/landing/Ribbons";
 import { HeroPhone } from "@/components/landing/HeroPhone";
 import { Showcase } from "@/components/landing/Showcase";
-import { ArtAlerts, ArtBigWin, ArtFollow, ArtLeaderboard, ArtMarkets, ArtSlip, ArtSplit, ArtSpeed } from "@/components/landing/CardArt";
+import { ArtAlerts, ArtFollow, ArtLeaderboard, ArtMarkets, ArtRecord, ArtSlip, ArtSplit, ArtSpeed } from "@/components/landing/CardArt";
 import { InlineMascot, Mascot } from "@/components/Mascot";
 import { LeagueMarquee, RisingMascot, RollingNumber, StatStory, WordReveal } from "@/components/landing/ScrollFx";
 import { BucketQuiz } from "@/components/landing/BucketQuiz";
@@ -48,27 +48,27 @@ export default async function Landing() {
           <div className="relative grid items-center gap-12 px-6 pt-14 pb-12 sm:px-12 sm:pt-20 lg:grid-cols-[1.15fr_1fr] lg:pb-16">
             <div className="text-center lg:text-left">
               <Reveal>
-                <Eyebrow tone="glass">For bettors who play to win</Eyebrow>
+                <Eyebrow tone="glass">For bettors who do the research</Eyebrow>
               </Reveal>
               <Reveal delay={0.08}>
                 <h1 className="display mt-5 text-[50px] sm:text-[84px] lg:text-[96px]">
-                  Start winning
+                  Bet like
                   <br />
-                  your bets.
+                  the best.
                 </h1>
               </Reveal>
               <Reveal delay={0.16}>
                 <p className="mx-auto mt-5 max-w-[520px] text-[16px] leading-[1.5] text-ink-2 sm:mt-6 sm:text-[21px] sm:leading-relaxed lg:mx-0">
-                  Follow the best sports bettors in the world. Bet what they bet, the second they bet it, and start turning the games you watch into profit.
+                  Get an alert the second top bettors place a bet. Every record verified.
                 </p>
               </Reveal>
               <Reveal delay={0.24}>
                 <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start">
                   <ButtonLink href="/app" variant="brand" size="lg" className="w-full sm:w-auto">
-                    Start winning
+                    Start free
                   </ButtonLink>
                   <ButtonLink href="/app?sort=profit" variant="light" size="lg" className="w-full sm:w-auto">
-                    See who&apos;s winning today
+                    See today&apos;s top bettors
                   </ButtonLink>
                 </div>
                 <p className="mt-4 text-[14px] text-ink-3">Free to start · No card · Works with any bookmaker</p>
@@ -85,12 +85,12 @@ export default async function Landing() {
       <section className="px-4 pt-6 sm:px-8">
         <div className="mx-auto grid max-w-[1200px] grid-cols-3 gap-2 sm:gap-3">
           {[
-            { k: d.topProfit30d ? `+${formatUsd(d.topProfit30d)}` : "—", v: "won this month by our #1 bettor", win: true },
-            { k: d.tracked ? d.tracked.toLocaleString("en-US") : "—", v: "top bettors you can follow" },
-            { k: "Seconds", v: "from their bet to your phone" },
+            { k: d.tracked ? d.tracked.toLocaleString("en-US") : "—", v: "bettors tracked" },
+            { k: "Every bet", v: "wins and losses, on the record" },
+            { k: "Seconds", v: "from their bet to your alert" },
           ].map((x) => (
             <Reveal key={x.v} className="rounded-[24px] bg-white p-4 text-center sm:p-6">
-              <div className={`display num text-[24px] sm:text-[44px] ${x.win ? "text-win" : ""}`}>{x.k}</div>
+              <div className="display num text-[24px] sm:text-[44px]">{x.k}</div>
               <div className="mt-1 text-[12.5px] leading-tight text-ink-2 sm:text-[16px]">{x.v}</div>
             </Reveal>
           ))}
@@ -111,28 +111,28 @@ export default async function Landing() {
             </>
           }
           cards={[
-            { title: "Stop guessing. Start copying the bettors who win.", bg: "#1652f0", ink: "#ffffff", art: <ArtLeaderboard bettors={d.phone.bettors} /> },
-            { title: "Know exactly where the money is made.", bg: "#d4ff4f", art: <ArtSplit compare={d.phone.compare} name={d.phone.bettors[0]?.name ?? ""} /> },
-            { title: "Copy only the bets that win.", bg: "#ffffff", art: <ArtFollow /> },
-            { title: "Their winning bet, on your phone, in seconds.", bg: "#ffe2cc", art: <ArtAlerts alert={d.phone.alert} name={d.phone.bettors[0]?.name ?? "A top bettor"} sport={d.phone.compare?.sport ?? d.phone.bettors[0]?.sport ?? "basketball"} /> },
+            { title: "Stop guessing. See what top bettors do.", bg: "#1652f0", ink: "#ffffff", art: <ArtLeaderboard bettors={d.phone.bettors} /> },
+            { title: "See their record, sport by sport.", bg: "#d4ff4f", art: <ArtSplit compare={d.phone.compare} name={d.phone.bettors[0]?.name ?? ""} /> },
+            { title: "Follow only the bets you want.", bg: "#ffffff", art: <ArtFollow /> },
+            { title: "Their next bet, on your phone, in seconds.", bg: "#ffe2cc", art: <ArtAlerts alert={d.phone.alert} name={d.phone.bettors[0]?.name ?? "A top bettor"} sport={d.phone.compare?.sport ?? d.phone.bettors[0]?.sport ?? "basketball"} /> },
           ]}
         />
       </div>
 
       {/* ── Real numbers, rolling in. Then rule 2: label them. ── */}
-      {d.winners30d.count > 0 && (
+      {d.tracked > 0 && (
         <StatStory
           first={
             <>
-              <RollingNumber value={d.winners30d.count.toLocaleString("en-US")} className="text-brand underline decoration-[0.06em] underline-offset-[0.12em]" /> winning bettors
+              <RollingNumber value={d.tracked.toLocaleString("en-US")} className="text-brand underline decoration-[0.06em] underline-offset-[0.12em]" /> bettors tracked.
             </>
           }
           second={
             <>
-              won <RollingNumber value={formatUsd(d.winners30d.profit)} className="text-win underline decoration-[0.06em] underline-offset-[0.12em]" /> this month.
+              <RollingNumber value={Object.values(d.perSport).reduce((a, s) => a + s.bets, 0).toLocaleString("en-US")} className="text-brand underline decoration-[0.06em] underline-offset-[0.12em]" /> bets this month.
             </>
           }
-          close={<>Now it&apos;s your turn to be on the winning side.</>}
+          close={<>Wins and losses. Every one on the record.</>}
         />
       )}
 
@@ -149,23 +149,23 @@ export default async function Landing() {
         </div>
       </section>
 
-      {/* ── Scroll story 2 (page turns blue): win more, lose less ── */}
+      {/* ── Scroll story 2 (page turns blue): their bet, your call ── */}
       <div className="h-[20vh]" />
       <Showcase
         tone="brand"
-        label="Win more"
+        label="Your call"
         labelIcon={<Mascot size={22} variant="white" />}
         phrase={
           <>
-            Win more.
+            Their bet.
             <br />
-            Lose <InlineMascot variant="white" /> less.
+            Your <InlineMascot variant="white" /> call.
           </>
         }
         cards={[
-          { title: "This month's #1 bettor is way up. Imagine being on their side.", bg: "#ffffff", art: <ArtBigWin amount={d.topProfit30d} /> },
-          { title: "Win on the bets you already love.", bg: "#ff7a59", ink: "#ffffff", art: <ArtMarkets /> },
-          { title: "Same pick. Your bookmaker. Your profit.", bg: "#ece3ff", art: <ArtSlip alert={d.phone.alert} /> },
+          { title: "Every bet on the record. Wins and losses.", bg: "#ffffff", art: <ArtRecord /> },
+          { title: "Every market you already follow.", bg: "#ff7a59", ink: "#ffffff", art: <ArtMarkets /> },
+          { title: "You see the pick. You decide what to bet.", bg: "#ece3ff", art: <ArtSlip alert={d.phone.alert} /> },
           { title: "Get in before the odds move.", bg: "#d4ff4f", art: <ArtSpeed /> },
         ]}
       />
@@ -173,7 +173,7 @@ export default async function Landing() {
       {/* ── Rule 3: loss aversion, lighting up word by word ── */}
       <section className="px-4 pt-24 sm:px-8 sm:pt-40">
         <div className="mx-auto max-w-[1100px]">
-          <WordReveal text="Every bet on a hunch is money you hand to *the *bookmaker. The best bettors in the world stopped guessing *years *ago." className="text-[32px] sm:text-[72px]" />
+          <WordReveal text="Most bettors bet on a hunch. *The *best *ones *bet *on *data." className="text-[32px] sm:text-[72px]" />
         </div>
       </section>
 
@@ -183,9 +183,9 @@ export default async function Landing() {
           <Reveal className="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
             <div>
               <Eyebrow>12 sports · 500+ leagues</Eyebrow>
-              <h2 className="display mt-5 text-[36px] sm:text-[72px]">Win in the sport you love.</h2>
+              <h2 className="display mt-5 text-[36px] sm:text-[72px]">Follow the sport you love.</h2>
             </div>
-            <p className="max-w-[360px] text-[16px] text-ink-2 sm:text-[18px]">The best NBA bettor isn&apos;t the best NFL bettor. Pick your sport and follow the people who win there.</p>
+            <p className="max-w-[360px] text-[16px] text-ink-2 sm:text-[18px]">The best NBA bettor isn&apos;t the best NFL bettor. Pick your sport and follow the best bettors there.</p>
           </Reveal>
         </div>
         <div className="mt-10 space-y-3">
@@ -201,7 +201,7 @@ export default async function Landing() {
             <Reveal>
               <Eyebrow>Real example</Eyebrow>
               <h2 className="display mt-5 text-[36px] sm:text-[64px]">Same bettor. Very different story.</h2>
-              <p className="mt-5 max-w-[480px] text-[16px] leading-[1.5] text-ink-2 sm:text-[19px] sm:leading-relaxed">Most people follow one number. Winners follow the bets that actually win. See exactly where someone makes their money, and copy only those bets.</p>
+              <p className="mt-5 max-w-[480px] text-[16px] leading-[1.5] text-ink-2 sm:text-[19px] sm:leading-relaxed">A leaderboard shows one number. CopyBet shows where each bettor is strong, sport by sport, so you follow only those bets.</p>
               <ButtonLink href={`/app/bettor/${d.compare.address}?s=${d.compare.sport}&tf=all`} variant="brand" size="md" className="mt-8">
                 See {d.compare.name}&apos;s profile
               </ButtonLink>
@@ -245,7 +245,7 @@ export default async function Landing() {
             <Reveal className="rounded-[32px] bg-white p-7 sm:p-10">
               <div className="text-[15px] font-semibold text-ink-3">If nothing changes</div>
               <ul className="mt-6 space-y-4 text-[16px] text-ink-2 sm:space-y-5 sm:text-[19px]">
-                {["You're still betting on gut feeling.", "Still chasing losses after a bad weekend.", "Still watching your balance go the wrong way."].map((t) => (
+                {["Betting on gut feeling.", "Finding out what the sharps did after the odds moved.", "Guessing who is actually good."].map((t) => (
                   <li key={t} className="flex gap-3">
                     <span className="mt-1.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-loss-soft">
                       <span className="h-1.5 w-1.5 rounded-full bg-loss" />
@@ -258,7 +258,7 @@ export default async function Landing() {
             <Reveal delay={0.1} className="rounded-[32px] bg-brand p-7 text-white sm:p-10">
               <div className="text-[15px] font-semibold text-white/70">If you start today</div>
               <ul className="mt-6 space-y-4 text-[16px] sm:space-y-5 sm:text-[19px]">
-                {["You bet alongside the best bettors in the world.", "Every bet you place has a winning record behind it.", "You know why you win, and you keep winning."].map((t) => (
+                {["You see what top bettors do, the second they do it.", "Every pick you follow has a verified record behind it.", "You decide every bet with data, not a hunch."].map((t) => (
                   <li key={t} className="flex gap-3">
                     <Check on="lime" />
                     {t}
@@ -286,7 +286,7 @@ export default async function Landing() {
                 <span className="display text-[56px]">$0</span>
               </div>
               <ul className="mt-6 mb-2 space-y-3 text-[15px] text-ink-2 sm:text-[17px]">
-                {["See every winning bettor's full record", "Filters and custom search", "Follow up to 3 bettors", "Their bets on Telegram, 10 minutes later"].map((t) => (
+                {["See every bettor's full record", "Filters and custom search", "Follow up to 3 bettors", "Their bets on Telegram, 10 minutes later"].map((t) => (
                   <li key={t} className="flex gap-3">
                     <Check /> {t}
                   </li>
@@ -306,13 +306,13 @@ export default async function Landing() {
                 <span className="text-white/70">/ month</span>
               </div>
               <ul className="mt-6 space-y-3 text-[15px] sm:text-[17px]">
-                {["Their bets within seconds, before the odds move", "Follow as many winners as you like", "Choose exactly which bets you get", "Saved searches"].map((t) => (
+                {["Their bets within seconds, before the odds move", "Follow as many bettors as you like", "Choose exactly which bets you get", "Saved searches"].map((t) => (
                   <li key={t} className="flex gap-3">
                     <Check on="lime" /> {t}
                   </li>
                 ))}
               </ul>
-              <p className="mt-6 text-[15px] text-white/75">Less than a single bet. One winning pick pays for it.</p>
+              <p className="mt-6 text-[15px] text-white/75">Less than a dollar a day. Cancel anytime.</p>
               <ButtonLink href="/app/account" variant="lime" size="lg" className="mt-6 w-full">
                 Go Pro
               </ButtonLink>
@@ -339,12 +339,12 @@ export default async function Landing() {
         <Reveal className="relative">
           <p className="text-[15px] font-medium opacity-70 sm:text-[17px]">For bettors who do the homework.</p>
           <h2 className="display mx-auto mt-5 max-w-[1000px] text-[44px] sm:text-[104px]">
-            Start winning.
+            Bet like the best.
             <br />
-            Follow <InlineMascot copyColor="#FFFFFF" /> the best.
+            Follow <InlineMascot copyColor="#FFFFFF" /> them.
           </h2>
           <ButtonLink href="/app" variant="brand" size="lg" className="mt-10">
-            Start winning, free
+            Start free
           </ButtonLink>
         </Reveal>
       </section>
@@ -353,7 +353,7 @@ export default async function Landing() {
         <div className="mx-auto flex max-w-[1200px] flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
           <Logo />
           <p className="max-w-[640px] text-[13px] leading-relaxed text-ink-3">
-            Records come from real, settled bets placed with real money. Nothing here is financial advice, and past results don&apos;t guarantee future results. Betting involves risk: only bet what you can afford to lose, where it&apos;s legal for you. 18+. Please gamble responsibly.
+            For informational purposes. Past results don&apos;t guarantee future results. Records come from real, settled bets placed with real money. Nothing here is financial advice. Betting involves risk: only bet what you can afford to lose, where it&apos;s legal for you. 18+. Please gamble responsibly.
           </p>
         </div>
       </footer>
