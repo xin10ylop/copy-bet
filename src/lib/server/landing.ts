@@ -1,5 +1,6 @@
 import { db } from "./db";
 import { bettorStats, landingStats } from "./stats";
+import { withBook } from "./bets";
 import type { PhoneAlert, PhoneBettor, PhoneCompare } from "@/components/landing/HeroPhone";
 
 export interface CompareExample {
@@ -24,6 +25,15 @@ export interface LandingData {
 
 let cache: { at: number; data: LandingData } | null = null;
 
+const toAlert = (p: { league: string; title: string; avgPrice: number; cost: number; bet: { selection: string; market: string; event: string } }): PhoneAlert => ({
+  league: p.league,
+  title: p.bet.event || p.title,
+  outcome: p.bet.selection,
+  market: p.bet.market,
+  price: p.avgPrice,
+  usd: p.cost,
+});
+
 /** Everything on the landing page comes from real, indexed Polymarket data. Cached 5 minutes. */
 export async function getLandingData(): Promise<LandingData> {
   if (cache && Date.now() - cache.at < 5 * 60_000) return cache.data;
@@ -33,7 +43,7 @@ export async function getLandingData(): Promise<LandingData> {
     let compare: CompareExample | null = null;
     for (const b of top) {
       const pos = await db.openPosition.findMany({ where: { bettorId: b.address, avgPrice: { gt: 0.05, lt: 0.95 } }, orderBy: { entryAt: "desc" }, take: 2 });
-      for (const p of pos) alerts.push({ league: p.league, title: p.title, outcome: p.outcome, price: p.avgPrice, usd: p.cost });
+      for (const p of await withBook(pos)) alerts.push(toAlert(p));
       // A bettor whose best sport looks very different from the rest of their record.
       const all = await bettorStats(b.address, { sports: [], timing: [], timeframe: "all" });
       const best = all.sports.filter((s) => s.bets >= 20).sort((a, z) => z.roi - a.roi)[0];
@@ -60,7 +70,7 @@ export async function getLandingData(): Promise<LandingData> {
     }
     const phoneBettors: PhoneBettor[] = ordered.slice(0, 4).map((b) => ({ address: b.address, name: b.name, profileImage: b.profileImage, roi: b.roi, profit: b.profit, winRate: b.winRate, bets: b.bets, sport: b === star && phoneCompare ? phoneCompare.sport : (b.topSports[0]?.sport ?? "other") }));
     const starAlert = star ? await db.openPosition.findFirst({ where: { bettorId: star.address, avgPrice: { gt: 0.2, lt: 0.8 } }, orderBy: { entryAt: "desc" } }) : null;
-    const alert: PhoneAlert | null = starAlert ? { league: starAlert.league, title: starAlert.title, outcome: starAlert.outcome, price: starAlert.avgPrice, usd: starAlert.cost } : (alerts[0] ?? null);
+    const alert: PhoneAlert | null = starAlert ? toAlert((await withBook([starAlert]))[0]) : (alerts[0] ?? null);
     const data: LandingData = { tracked, winners30d, perSport, topProfit30d: top[0]?.profit ?? null, phone: { bettors: phoneBettors, alert, compare: phoneCompare }, compare };
     cache = { at: Date.now(), data };
     return data;

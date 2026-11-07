@@ -17,6 +17,7 @@ import { indexBettor, indexLeaderboards } from "../src/lib/server/indexer";
 import { displayName, gammaEvents } from "../src/lib/polymarket";
 import { FREE_DELAY_MINUTES } from "../src/lib/server/session";
 import { escapeHtml, pollUpdates, sendMessage, telegramEnabled } from "./telegram";
+import { toBookmakerBet } from "../src/lib/betFormat";
 
 const RTDS = "wss://ws-live-data.polymarket.com";
 const APP_URL = (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
@@ -39,7 +40,7 @@ async function refreshFollows() {
 }
 
 // ─── Event start times (for timing rules + "starts in 3h") ───────────────────
-const eventCache = new Map<string, { isGame: boolean; start: Date | null }>();
+const eventCache = new Map<string, { isGame: boolean; start: Date | null; title: string | null }>();
 async function eventInfo(slug: string) {
   const hit = eventCache.get(slug);
   if (hit) return hit;
@@ -51,7 +52,7 @@ async function eventInfo(slug: string) {
       meta = await db.eventMeta.upsert({ where: { slug }, create: row, update: row });
     }
   }
-  const info = { isGame: meta?.isGame ?? false, start: meta?.startTime ?? null };
+  const info = { isGame: meta?.isGame ?? false, start: meta?.startTime ?? null, title: meta?.title ?? null };
   eventCache.set(slug, info);
   return info;
 }
@@ -248,11 +249,12 @@ async function formatAlert(a: { bettorId: string; side: string; title: string; o
   const cls = classifyEvent(a.eventSlug, a.title);
   const ev = await eventInfo(a.eventSlug);
   const record = a.sport ? await recordLine(a.bettorId, a.sport) : "";
-  const verb = a.side === "BUY" ? "Bought" : "Sold";
+  const bet = toBookmakerBet(a.title, a.outcome, ev.title, a.sport ?? undefined);
   const lines = [
-    `${a.side === "BUY" ? "🟢" : "🔴"} <b>${a.side === "BUY" ? "New bet" : "Sold"} · ${name}</b>`,
-    `${escapeHtml(cls ? leagueLabel(cls.league) : "")} · ${escapeHtml(a.title)}${startsIn(ev.start)}`,
-    `<b>${verb} ${escapeHtml(a.outcome)} @ ${formatOdds(a.price)} · ${formatUsd(a.usdSize, false)}</b>`,
+    `${a.side === "BUY" ? "🟢" : "🔴"} <b>${a.side === "BUY" ? "New bet" : "Cashed out"} · ${name}</b>`,
+    `${escapeHtml(cls ? leagueLabel(cls.league) : "")} · ${escapeHtml(bet.event || a.title)}${startsIn(ev.start)}`,
+    `<b>${escapeHtml(bet.selection)} @ ${formatOdds(a.price)}</b>`,
+    `${escapeHtml(bet.market)} · ${formatUsd(a.usdSize, false)} staked`,
   ];
   if (record) lines.push(escapeHtml(record));
   if (a.user.plan !== "pro") {

@@ -87,7 +87,7 @@ export default async function Landing() {
           {[
             { k: d.tracked ? d.tracked.toLocaleString("en-US") : "—", v: "bettors tracked" },
             { k: "Every bet", v: "wins and losses, on the record" },
-            { k: "Seconds", v: "from their bet to your alert" },
+            { k: "Seconds", v: "from their bet to your phone" },
           ].map((x) => (
             <Reveal key={x.v} className="rounded-[24px] bg-white p-4 text-center sm:p-6">
               <div className="display num text-[24px] sm:text-[44px]">{x.k}</div>
@@ -173,7 +173,7 @@ export default async function Landing() {
       {/* ── Rule 3: loss aversion, lighting up word by word ── */}
       <section className="px-4 pt-24 sm:px-8 sm:pt-40">
         <div className="mx-auto max-w-[1100px]">
-          <WordReveal text="Most bettors bet on a hunch. *The *best *ones *bet *on *data." className="text-[32px] sm:text-[72px]" />
+          <WordReveal text="Most bettors guess. *The *best *ones *use *data." className="text-[32px] sm:text-[72px]" />
         </div>
       </section>
 
@@ -258,7 +258,7 @@ export default async function Landing() {
             <Reveal delay={0.1} className="rounded-[32px] bg-brand p-7 text-white sm:p-10">
               <div className="text-[15px] font-semibold text-white/70">If you start today</div>
               <ul className="mt-6 space-y-4 text-[16px] sm:space-y-5 sm:text-[19px]">
-                {["You see what top bettors do, the second they do it.", "Every pick you follow has a verified record behind it.", "You decide every bet with data, not a hunch."].map((t) => (
+                {["You see what top bettors do, the second they do it.", "Every pick you follow has a verified record behind it.", "You decide every bet with data, not guesses."].map((t) => (
                   <li key={t} className="flex gap-3">
                     <Check on="lime" />
                     {t}

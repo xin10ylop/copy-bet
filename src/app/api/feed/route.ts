@@ -2,6 +2,7 @@ import { db } from "@/lib/server/db";
 import { getUser } from "@/lib/server/session";
 import * as pm from "@/lib/polymarket";
 import { classifyEvent, loadLeagueCodes } from "@/lib/sports";
+import { withBook } from "@/lib/server/bets";
 
 // Recent bets from everyone in the user's portfolio, newest first.
 // Reads Polymarket directly (short cache) so the feed is live even before the worker runs.
@@ -50,5 +51,5 @@ export async function GET() {
     if (prev) prev.usd += it.usd;
     else merged.set(it.id, { ...it });
   }
-  return Response.json({ items: [...merged.values()].slice(0, 60) });
+  return Response.json({ items: await withBook([...merged.values()].slice(0, 60)) });
 }

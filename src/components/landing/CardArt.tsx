@@ -114,7 +114,7 @@ export function ArtFollow() {
 /** Peach card: their bets dropping in as notifications. */
 export function ArtAlerts({ alert, name, sport }: { alert: PhoneAlert | null; name: string; sport: string }) {
   const { ref, step } = useLoop(1800, 3);
-  const a = alert ?? { league: "nba", title: "Lakers vs. Celtics", outcome: "Lakers", price: 0.47, usd: 2500 };
+  const a = alert ?? { league: "nba", title: "Lakers vs Celtics", outcome: "Lakers to win", market: "Moneyline", price: 0.47, usd: 2500 };
   const items = [
     { t: `${leagueLabel(a.league)} · ${a.title}`, p: `${a.outcome} @ ${formatOdds(a.price)} · ${formatUsd(a.usd)}` },
     { t: "Your filter matched", p: `${sportLabel(sport)} · big bet` },
@@ -201,7 +201,7 @@ export function ArtMarkets() {
 /** Lavender card: a bet slip at "your bookmaker". */
 export function ArtSlip({ alert }: { alert: PhoneAlert | null }) {
   const { ref, step } = useLoop(1400, 4);
-  const a = alert ?? { league: "nba", title: "Lakers vs. Celtics", outcome: "Lakers", price: 0.47, usd: 2500 };
+  const a = alert ?? { league: "nba", title: "Lakers vs Celtics", outcome: "Lakers to win", market: "Moneyline", price: 0.47, usd: 2500 };
   const odds = Number(formatOdds(a.price)) || 2;
   return (
     <div ref={ref} className="absolute inset-0 flex items-end justify-center p-5">
@@ -212,7 +212,7 @@ export function ArtSlip({ alert }: { alert: PhoneAlert | null }) {
         </div>
         <div className="mt-2 text-[15px] font-semibold">{a.outcome}</div>
         <div className="truncate text-[12.5px] text-[#545c80]">
-          {leagueLabel(a.league)} · {a.title}
+          {a.market} · {a.title}
         </div>
         <div className="mt-3 grid grid-cols-3 gap-1.5 text-center">
           <div className="rounded-xl bg-[#f1f4ff] py-2">

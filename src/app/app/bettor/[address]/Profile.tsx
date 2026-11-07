@@ -308,9 +308,11 @@ function PositionsBlock({ positions, total }: { positions: Data["positions"]; to
                 <SportIcon sport={p.sport} size={20} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[15px] font-semibold">{p.title}</span>
+                <span className="block truncate text-[15px] font-semibold">
+                  {p.bet.selection} <span className="num text-ink-3">@ {formatOdds(p.avgPrice)}</span>
+                </span>
                 <span className="block truncate text-[13px] text-ink-3">
-                  {leagueLabel(p.league)} · {p.outcome} @ {formatOdds(p.avgPrice)}{p.gameStartAt ? ` · ${gameTime(p.gameStartAt)}` : ""}
+                  {p.bet.market} · {p.bet.event || leagueLabel(p.league)}{p.gameStartAt ? ` · ${gameTime(p.gameStartAt)}` : ""}
                 </span>
               </span>
               <span className="text-right">
@@ -342,9 +344,9 @@ function RecentBlock({ recent }: { recent: Data["recent"] }) {
           <div key={r.id} className={clsx("flex items-center gap-3 p-4", i > 0 && "border-t border-line")}>
             <span className={clsx("flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[13px] font-bold", r.pnl > 0 ? "bg-win-soft text-win" : "bg-loss-soft text-loss")}>{r.pnl > 0 ? "W" : "L"}</span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[15px] font-semibold">{r.title}</span>
+              <span className="block truncate text-[15px] font-semibold">{r.bet.selection}</span>
               <span className="block truncate text-[13px] text-ink-3">
-                {leagueLabel(r.league)} · {r.outcome} · {formatUsd(r.cost)} staked
+                {r.bet.market} · {r.bet.event || leagueLabel(r.league)} · {formatUsd(r.cost)} staked
               </span>
             </span>
             <span className={clsx("num text-[15px] font-semibold", r.pnl >= 0 ? "text-win" : "text-loss")}>

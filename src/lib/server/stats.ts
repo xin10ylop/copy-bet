@@ -4,6 +4,7 @@
 import { db } from "./db";
 import { DEFAULT_MIN_BETS, type BettorFilter, type BettorStats, type SportSlice, type TimingKey, timeframeSince } from "../filters";
 import { displayName } from "../polymarket";
+import { withBook } from "./bets";
 
 /** Minimum total stake (USD) in the selected bets for a bettor to be ranked. */
 export const MIN_STAKED = 1000;
@@ -232,8 +233,8 @@ export async function bettorProfile(address: string, f: BettorFilter) {
     filtered,
     everything: everything ?? filtered,
     narrowed,
-    positions: positions.map((p) => ({ ...p, entryAt: p.entryAt.toISOString(), gameStartAt: p.gameStartAt?.toISOString() ?? null })),
-    recent: recent.map((r) => ({
+    positions: (await withBook(positions)).map((p) => ({ ...p, entryAt: p.entryAt.toISOString(), gameStartAt: p.gameStartAt?.toISOString() ?? null })),
+    recent: (await withBook(recent)).map((r) => ({
       id: r.id,
       sport: r.sport,
       league: r.league,
@@ -244,6 +245,7 @@ export async function bettorProfile(address: string, f: BettorFilter) {
       timing: r.timing,
       eventSlug: r.eventSlug,
       icon: r.icon,
+      bet: r.bet,
       settledAt: r.settledAt.toISOString(),
     })),
   };

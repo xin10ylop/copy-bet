@@ -19,6 +19,7 @@ interface FeedItem {
   side: "BUY" | "SELL";
   title: string;
   outcome: string;
+  bet: { selection: string; market: string; event: string };
   price: number;
   usd: number;
   sport: string;
@@ -118,14 +119,14 @@ export default function PortfolioPage() {
                         <span className="shrink-0 text-[12px] text-ink-3">{ago(it.timestamp)}</span>
                       </div>
                       <div className="mt-0.5 flex items-center gap-1.5 text-[13px] text-ink-3">
-                        <SportIcon sport={it.sport} size={14} /> {leagueLabel(it.league)} · <span className="truncate">{it.title}</span>
+                        <SportIcon sport={it.sport} size={14} /> <span className="truncate">{it.bet.market} · {it.bet.event || leagueLabel(it.league)}</span>
                       </div>
                       <div className="mt-1.5 flex items-center gap-2">
-                        <span className={clsx("rounded-full px-2 py-0.5 text-[11px] font-bold", it.side === "BUY" ? "bg-win-soft text-win" : "bg-loss-soft text-loss")}>{it.side === "BUY" ? "BOUGHT" : "SOLD"}</span>
-                        <span className="text-[15px] font-semibold">
-                          {it.outcome} @ {formatOdds(it.price)}
+                        <span className={clsx("rounded-full px-2 py-0.5 text-[11px] font-bold", it.side === "BUY" ? "bg-win-soft text-win" : "bg-loss-soft text-loss")}>{it.side === "BUY" ? "BET" : "CASHED OUT"}</span>
+                        <span className="min-w-0 truncate text-[15px] font-semibold">
+                          {it.bet.selection} <span className="num text-ink-3">@ {formatOdds(it.price)}</span>
                         </span>
-                        <span className="num ml-auto text-[15px] font-semibold">{formatUsd(it.usd)}</span>
+                        <span className="num ml-auto shrink-0 text-[15px] font-semibold">{formatUsd(it.usd)}</span>
                       </div>
                     </div>
                   </motion.div>
