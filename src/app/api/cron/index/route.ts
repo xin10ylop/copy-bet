@@ -1,6 +1,6 @@
 import { after } from "next/server";
 import { db } from "@/lib/server/db";
-import { indexBettor, indexLeaderboards, shardOf } from "@/lib/server/indexer";
+import { indexBettor, indexLeaderboards, pruneUntracked, shardOf } from "@/lib/server/indexer";
 
 // Refreshes every tracked bettor from Polymarket.
 // Called by Vercel Cron (Authorization: Bearer $CRON_SECRET) or manually with ?key=$CRON_SECRET.
@@ -30,9 +30,10 @@ export async function GET(req: Request) {
 
   const shardParam = url.searchParams.get("shard");
   if (shardParam === null) {
+    const removed = await pruneUntracked().catch(() => 0);
     const [bettors, fresh] = await Promise.all([db.bettor.count(), db.bettor.count({ where: { lastIndexedAt: { gte: new Date(Date.now() - REFRESH_MS) } } })]);
     await Promise.all(Array.from({ length: SHARDS }, (_, shard) => call({ shard, of: SHARDS, hop: 0 })));
-    return Response.json({ started: true, shards: SHARDS, bettors, fresh });
+    return Response.json({ started: true, shards: SHARDS, bettors, fresh, removed });
   }
 
   const shard = Number(shardParam);

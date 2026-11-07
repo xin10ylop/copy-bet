@@ -16,8 +16,8 @@ const MAX_OPEN = 20_000;
 /** Daily rows are kept for this many days (7d / 30d windows); older ones are merged per month. */
 const DAILY_DAYS = 35;
 
-/** Who counts as a top sports bettor worth tracking. */
-export const INCLUDE = { allTimeProfit: 10_000, monthProfit: 1_000, weekProfit: 1_000 };
+/** Tracked bettors: the top TOP_N of each sports leaderboard (all-time, last 30 days, last 7 days, by profit). */
+export const TOP_N = 1_000;
 
 type Meta = { slug: string; title: string | null; isGame: boolean; startTime: Date | null; league: string | null; sport: string | null; fetchedAt: Date };
 
@@ -252,26 +252,33 @@ export async function ensureIndexed(address: string, maxAgeMs = 30 * 60_000) {
   return db.bettor.findUnique({ where: { address: address.toLowerCase() } });
 }
 
-/** Everyone who passes INCLUDE on the sports leaderboards (all-time, 30-day and 7-day profit). */
+/** The top TOP_N bettors of each sports leaderboard (all-time, 30-day and 7-day profit), merged. */
 export async function trackedBettors() {
-  // The boards are sorted by profit, so read only as deep as the threshold reaches.
   const [all, month, week] = await Promise.all([
-    pm.sportsLeaderboard("all", "PNL", 12_000),
-    pm.sportsLeaderboard("month", "PNL", 8_000),
-    pm.sportsLeaderboard("week", "PNL", 6_000),
+    pm.sportsLeaderboard("all", "PNL", TOP_N),
+    pm.sportsLeaderboard("month", "PNL", TOP_N),
+    pm.sportsLeaderboard("week", "PNL", TOP_N),
   ]);
   const hints = new Map<string, IndexHint>();
   const add = (e: pm.LeaderboardEntry, extra: Partial<IndexHint>) => {
     const a = e.user_id.toLowerCase();
     hints.set(a, { ...hints.get(a), name: e.user_name, profileImage: e.profile_image, xUsername: e.x_username, verified: e.verified, ...extra });
   };
-  all.filter((e) => e.pnl >= INCLUDE.allTimeProfit).forEach((e) => add(e, { lbPnlAll: e.pnl, lbVolumeAll: e.volume }));
-  month.filter((e) => e.pnl >= INCLUDE.monthProfit).forEach((e) => add(e, { lbPnlMonth: e.pnl }));
-  week.filter((e) => e.pnl >= INCLUDE.weekProfit).forEach((e) => add(e, {}));
-  // Leaderboard figures for bettors who made the list another way.
-  for (const e of all) if (hints.has(e.user_id.toLowerCase())) Object.assign(hints.get(e.user_id.toLowerCase())!, { lbPnlAll: e.pnl, lbVolumeAll: e.volume });
-  for (const e of month) if (hints.has(e.user_id.toLowerCase())) Object.assign(hints.get(e.user_id.toLowerCase())!, { lbPnlMonth: e.pnl });
+  all.forEach((e) => add(e, { lbPnlAll: e.pnl, lbVolumeAll: e.volume }));
+  month.forEach((e) => add(e, { lbPnlMonth: e.pnl }));
+  week.forEach((e) => add(e, {}));
   return hints;
+}
+
+/** Remove bettors who dropped off every leaderboard's top TOP_N, unless someone follows them. */
+export async function pruneUntracked(hints?: Map<string, IndexHint>) {
+  const tracked = hints ?? (await trackedBettors());
+  if (tracked.size < TOP_N) return 0; // leaderboard fetch looked incomplete: don't delete anything
+  const followed = new Set((await db.follow.findMany({ distinct: ["bettorId"], select: { bettorId: true } })).map((f) => f.bettorId));
+  const all = await db.bettor.findMany({ select: { address: true } });
+  const drop = all.map((b) => b.address).filter((a) => !tracked.has(a) && !followed.has(a));
+  for (let i = 0; i < drop.length; i += 500) await db.bettor.deleteMany({ where: { address: { in: drop.slice(i, i + 500) } } });
+  return drop.length;
 }
 
 /** Stable shard for an address (0 … of-1). */
