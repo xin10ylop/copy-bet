@@ -10,11 +10,11 @@
 // Run: npm run worker   (needs DATABASE_URL; TELEGRAM_BOT_TOKEN optional — without it alerts are logged)
 
 import { db } from "../src/lib/server/db";
-import { classifyEvent, leagueLabel, loadLeagueCodes, sportLabel } from "../src/lib/sports";
+import { classifySlug, classifyWithMeta, leagueLabel, loadLeagueCodes, sportLabel } from "../src/lib/sports";
 import { formatOdds, formatPct, formatUsd, timingFor, type TimingKey } from "../src/lib/filters";
 import { bettorStats } from "../src/lib/server/stats";
-import { indexBettor, indexLeaderboards } from "../src/lib/server/indexer";
-import { displayName, gammaEvents } from "../src/lib/polymarket";
+import { eventMeta, indexBettor, indexLeaderboards } from "../src/lib/server/indexer";
+import { displayName } from "../src/lib/polymarket";
 import { FREE_DELAY_MINUTES } from "../src/lib/server/session";
 import { escapeHtml, pollUpdates, sendMessage, telegramEnabled } from "./telegram";
 import { toBookmakerBet } from "../src/lib/betFormat";
@@ -40,21 +40,18 @@ async function refreshFollows() {
 }
 
 // ─── Event start times (for timing rules + "starts in 3h") ───────────────────
-const eventCache = new Map<string, { isGame: boolean; start: Date | null; title: string | null }>();
+const eventCache = new Map<string, { isGame: boolean; start: Date | null; title: string | null; sport: string | null; league: string | null }>();
 async function eventInfo(slug: string) {
   const hit = eventCache.get(slug);
   if (hit) return hit;
-  let meta = await db.eventMeta.findUnique({ where: { slug } });
-  if (!meta) {
-    const [e] = await gammaEvents([slug]);
-    if (e) {
-      const row = { slug, title: e.title, isGame: (e.tags ?? []).some((t) => t.slug === "games"), startTime: e.startTime ? new Date(e.startTime) : null, league: classifyEvent(slug, e.title)?.league ?? null };
-      meta = await db.eventMeta.upsert({ where: { slug }, create: row, update: row });
-    }
-  }
-  const info = { isGame: meta?.isGame ?? false, start: meta?.startTime ?? null, title: meta?.title ?? null };
+  const meta = (await eventMeta([slug]).catch(() => new Map())).get(slug);
+  const info = { isGame: meta?.isGame ?? false, start: meta?.startTime ?? null, title: meta?.title ?? null, sport: meta?.sport ?? null, league: meta?.league ?? null };
   eventCache.set(slug, info);
   return info;
+}
+/** Sports market? League code in the slug, else Polymarket's own event tags. */
+async function classifyBet(slug: string, title: string) {
+  return classifySlug(slug) ?? classifyWithMeta(slug, title, await eventInfo(slug));
 }
 
 // ─── Live trades ──────────────────────────────────────────────────────────────
@@ -126,7 +123,7 @@ function startsIn(start: Date | null) {
 }
 
 async function handleBet(bet: PendingBet) {
-  const cls = classifyEvent(bet.eventSlug, bet.title);
+  const cls = await classifyBet(bet.eventSlug, bet.title);
   if (!cls) return; // not a sports market
   const followers = followsByBettor.get(bet.wallet) ?? [];
   if (!followers.length) return;
@@ -248,7 +245,7 @@ async function sendDue() {
 async function formatAlert(a: { bettorId: string; side: string; title: string; outcome: string; outcomeIndex: number | null; price: number; usdSize: number; eventSlug: string; sport: string | null; detectedAt: Date; sendAt: Date; user: { plan: string } }) {
   const bettor = await db.bettor.findUnique({ where: { address: a.bettorId } });
   const name = escapeHtml(displayName(bettor?.name, bettor?.pseudonym, a.bettorId));
-  const cls = classifyEvent(a.eventSlug, a.title);
+  const cls = await classifyBet(a.eventSlug, a.title);
   const ev = await eventInfo(a.eventSlug);
   const record = a.sport ? await recordLine(a.bettorId, a.sport) : "";
   const bet = toBookmakerBet(a.title, a.outcome, ev.title, a.sport ?? undefined, a.outcomeIndex);

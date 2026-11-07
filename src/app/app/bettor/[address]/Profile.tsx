@@ -85,6 +85,9 @@ export function Profile({ address }: { address: string }) {
       </motion.div>
 
       {data.bettor.isMarketMaker && <div className="mt-4 rounded-2xl bg-loss-soft px-4 py-3 text-[14px] text-loss">This bettor often bets both sides of the same game, so their record may not be worth copying.</div>}
+      {data.bettor.historyTruncated && filter.timeframe === "all" && (
+        <div className="mt-4 rounded-2xl bg-surface-2 px-4 py-3 text-[14px] text-ink-2">Very active account: all-time figures cover their most recent bets only. 7-day and 30-day figures are complete.</div>
+      )}
 
       {/* Timeframe */}
       <div className="mt-6">
@@ -131,7 +134,7 @@ export function Profile({ address }: { address: string }) {
         <motion.div key={scope + key} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}>
           <SportsBlock s={view} activeSports={filter.sports} onPick={(sport) => setParams({ s: filter.sports.length === 1 && filter.sports[0] === sport ? null : sport })} />
           <TimingBlock s={view} />
-          <PositionsBlock positions={positions} total={data.positions.length} />
+          <PositionsBlock positions={positions} stored={data.positions.length} total={Math.max(data.bettor.openCount ?? 0, data.positions.length)} />
           <RecentBlock recent={recent} />
         </motion.div>
       </AnimatePresence>
@@ -293,11 +296,13 @@ function TimingBlock({ s }: { s: BettorStats }) {
   );
 }
 
-function PositionsBlock({ positions, total }: { positions: Data["positions"]; total: number }) {
+function PositionsBlock({ positions, stored, total }: { positions: Data["positions"]; stored: number; total: number }) {
   const [all, setAll] = useState(false);
   const list = all ? positions : positions.slice(0, 6);
+  // Only the largest open bets are loaded; say so when there are more.
+  const narrowed = positions.length !== stored;
   return (
-    <Block title="Open bets" hint={`${positions.length}${positions.length !== total ? ` of ${total}` : ""} live`}>
+    <Block title="Open bets" hint={narrowed ? `${positions.length} match · ${total} live` : `${total} live${total > stored ? ` · ${stored} largest shown` : ""}`}>
       {positions.length === 0 ? (
         <EmptyCard text="No open bets that match right now." />
       ) : (

@@ -28,14 +28,16 @@ export interface Sport {
   ink: string;
 }
 
+// Display order: football (soccer) first, then basketball, tennis, UFC, American football, then the rest.
+// Keys stay as they are ("soccer" / "football") so saved filters and links keep working.
 export const SPORTS: Sport[] = [
-  { key: "football", label: "Football", short: "NFL", headline: ["NFL", "College"], tile: "#DDE6FF", ink: "#1B2B6B" },
+  { key: "soccer", label: "Football", short: "Football", headline: ["Premier League", "Champions League", "La Liga"], tile: "#D6F5E3", ink: "#0B4D2C" },
   { key: "basketball", label: "Basketball", short: "NBA", headline: ["NBA", "NCAAB", "EuroLeague"], tile: "#FFE2CC", ink: "#6B2E0B" },
-  { key: "soccer", label: "Soccer", short: "Soccer", headline: ["Premier League", "Champions League", "La Liga"], tile: "#D6F5E3", ink: "#0B4D2C" },
-  { key: "baseball", label: "Baseball", short: "MLB", headline: ["MLB", "KBO", "NPB"], tile: "#FFE0E3", ink: "#6B0B1A" },
-  { key: "hockey", label: "Hockey", short: "NHL", headline: ["NHL", "KHL", "SHL"], tile: "#DDF3FA", ink: "#0B4A5E" },
   { key: "tennis", label: "Tennis", short: "Tennis", headline: ["ATP", "WTA"], tile: "#F1F9C9", ink: "#3D4A06" },
   { key: "combat", label: "UFC & Boxing", short: "UFC", headline: ["UFC", "Boxing"], tile: "#ECE3FF", ink: "#3A1B7A" },
+  { key: "football", label: "American football", short: "NFL", headline: ["NFL", "College"], tile: "#DDE6FF", ink: "#1B2B6B" },
+  { key: "baseball", label: "Baseball", short: "MLB", headline: ["MLB", "KBO", "NPB"], tile: "#FFE0E3", ink: "#6B0B1A" },
+  { key: "hockey", label: "Hockey", short: "NHL", headline: ["NHL", "KHL", "SHL"], tile: "#DDF3FA", ink: "#0B4A5E" },
   { key: "esports", label: "Esports", short: "Esports", headline: ["CS2", "LoL", "Dota 2", "Valorant"], tile: "#E3E1F7", ink: "#25205C" },
   { key: "cricket", label: "Cricket", short: "Cricket", headline: ["IPL", "T20", "Test"], tile: "#E6F4D7", ink: "#2C4A0B" },
   { key: "golf", label: "Golf", short: "Golf", headline: ["PGA", "LIV"], tile: "#DFF2EC", ink: "#0B4A3A" },
@@ -126,11 +128,10 @@ export function isKnownLeague(code: string): boolean {
   return dynamicCodes.has(code) || code in CODE_TO_SPORT;
 }
 
-/**
- * Resolve an event slug (and optional title) to {league, sport}.
- * Returns null when the event is not a sports event.
- */
-export function classifyEvent(eventSlug: string, title = ""): { league: string; sport: SportKey } | null {
+export type Classified = { league: string; sport: SportKey };
+
+/** League code at the start of the event slug ("nfl-jax-bal-…" -> nfl). Every current sports market has one. */
+export function classifySlug(eventSlug: string): Classified | null {
   const parts = (eventSlug || "").toLowerCase().split("-");
   for (const n of [2, 1]) {
     const code = parts.slice(0, n).join("-");
@@ -138,8 +139,56 @@ export function classifyEvent(eventSlug: string, title = ""): { league: string; 
     const sport = dynamicCodes.get(code) ?? CODE_TO_SPORT[code];
     if (sport) return { league: code, sport };
   }
+  return null;
+}
+
+// Polymarket event tag slugs -> sport. Events in Polymarket's sports category carry "sports" plus these.
+const TAG_SLUG_TO_SPORT: Record<string, SportKey> = {
+  soccer: "soccer", football: "soccer", epl: "soccer", "premier-league": "soccer", "champions-league": "soccer", ucl: "soccer", "la-liga": "soccer", "serie-a": "soccer", bundesliga: "soccer", "ligue-1": "soccer", mls: "soccer", "world-cup": "soccer", "fifa-world-cup": "soccer", "europa-league": "soccer",
+  basketball: "basketball", nba: "basketball", wnba: "basketball", ncaab: "basketball", "march-madness": "basketball", euroleague: "basketball",
+  tennis: "tennis", atp: "tennis", wta: "tennis", wimbledon: "tennis", "roland-garros": "tennis", "french-open": "tennis", "australian-open": "tennis", "us-open-tennis": "tennis",
+  ufc: "combat", mma: "combat", boxing: "combat",
+  nfl: "football", cfb: "football", "college-football": "football", "super-bowl": "football", "american-football": "football",
+  baseball: "baseball", mlb: "baseball", "world-series": "baseball",
+  hockey: "hockey", nhl: "hockey", "stanley-cup": "hockey",
+  esports: "esports", cs2: "esports", "counter-strike": "esports", "league-of-legends": "esports", lol: "esports", dota2: "esports", "dota-2": "esports", valorant: "esports",
+  cricket: "cricket", ipl: "cricket",
+  golf: "golf", pga: "golf", "the-masters": "golf",
+  f1: "racing", "formula-1": "racing", "formula1": "racing", nascar: "racing", motogp: "racing", racing: "racing",
+  rugby: "rugby",
+};
+
+/** Sport from Polymarket's event tags; null when the event is not in their sports category. */
+export function classifyTags(tagSlugs: string[]): Classified | null {
+  const tags = tagSlugs.map((t) => t.toLowerCase());
+  for (const t of tags) {
+    const fromCode = dynamicCodes.get(t) ?? CODE_TO_SPORT[t];
+    if (fromCode && fromCode !== "other") return { league: t, sport: fromCode };
+  }
+  for (const t of tags) if (TAG_SLUG_TO_SPORT[t]) return { league: TAG_SLUG_TO_SPORT[t], sport: TAG_SLUG_TO_SPORT[t] };
+  return tags.includes("sports") ? { league: "other", sport: "other" } : null;
+}
+
+/** Last resort when tags aren't available: title keywords (can be wrong, e.g. golf vs tennis "Masters"). */
+export function classifyKeywords(eventSlug: string, title = ""): Classified | null {
   for (const [re, sport] of KEYWORDS) if (re.test(title) || re.test(eventSlug.replace(/-/g, " "))) return { league: sport, sport };
   return null;
+}
+
+/**
+ * Resolve an event slug (and optional title) to {league, sport} without a network call.
+ * Returns null when the event is not a sports event. Prefer `classifyWithMeta` when EventMeta is at hand.
+ */
+export function classifyEvent(eventSlug: string, title = ""): Classified | null {
+  return classifySlug(eventSlug) ?? classifyKeywords(eventSlug, title);
+}
+
+/** League code first, then Polymarket's own tags (stored on EventMeta.sport), then keywords if the event was never looked up. */
+export function classifyWithMeta(eventSlug: string, title: string, meta?: { sport?: string | null; league?: string | null } | null): Classified | null {
+  const bySlug = classifySlug(eventSlug);
+  if (bySlug) return bySlug;
+  if (meta && meta.sport !== null && meta.sport !== undefined) return meta.sport ? { league: meta.league || meta.sport, sport: meta.sport as SportKey } : null;
+  return classifyKeywords(eventSlug, title);
 }
 
 export const LEAGUE_LABELS: Record<string, string> = {

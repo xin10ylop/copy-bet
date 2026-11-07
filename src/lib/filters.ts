@@ -59,6 +59,31 @@ export function timeframeSince(tf: Timeframe, now = Date.now()): Date | null {
   return null;
 }
 
+/**
+ * Lead-time buckets (minutes before kickoff) for the "typically X before the game" figure.
+ * Bucket i holds leads in [LEAD_EDGES[i], LEAD_EDGES[i+1]); bucket 0 is in-game (negative lead).
+ */
+export const LEAD_EDGES = [-Infinity, 0, 15, 60, 180, 360, 720, 1440, 2880, 10080, Infinity];
+export const leadBucket = (minutes: number) => LEAD_EDGES.findIndex((e, i) => minutes >= e && minutes < LEAD_EDGES[i + 1]);
+
+/** Median lead from a lead histogram, interpolated inside its bucket (log scale for wide buckets). */
+export function medianFromHist(hist: number[]): number | null {
+  const total = hist.reduce((a, b) => a + b, 0);
+  if (!total) return null;
+  let seen = 0;
+  for (let i = 0; i < hist.length; i++) {
+    if (seen + hist[i] >= total / 2 && hist[i] > 0) {
+      if (i === 0) return -1; // in-game
+      const lo = Math.max(LEAD_EDGES[i], 1);
+      const hi = Number.isFinite(LEAD_EDGES[i + 1]) ? LEAD_EDGES[i + 1] : lo * 3;
+      const f = (total / 2 - seen) / hist[i];
+      return Math.exp(Math.log(lo) + f * (Math.log(hi) - Math.log(lo)));
+    }
+    seen += hist[i];
+  }
+  return null;
+}
+
 /** Classify a bet by how long before kickoff it was placed. */
 export function timingFor(leadMinutes: number | null, isGame: boolean): TimingKey {
   if (!isGame || leadMinutes === null) return "futures";

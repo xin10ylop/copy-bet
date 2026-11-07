@@ -13,7 +13,7 @@ import { sportLabel } from "@/lib/sports";
 const READY: { name: string; sub: string; color: string; f: Partial<BettorFilter> }[] = [
   { name: "NFL sharps", sub: "30d ROI 10%+, 30+ bets", color: "#DDE6FF", f: { sports: ["football"], roi: { min: 10 }, bets: { min: 30 } } },
   { name: "NBA sharps", sub: "30d ROI 10%+, 30+ bets", color: "#FFE2CC", f: { sports: ["basketball"], roi: { min: 10 }, bets: { min: 30 } } },
-  { name: "Soccer sharps", sub: "30d ROI 10%+, 30+ bets", color: "#D6F5E3", f: { sports: ["soccer"], roi: { min: 10 }, bets: { min: 30 } } },
+  { name: "Football sharps", sub: "30d ROI 10%+, 30+ bets", color: "#D6F5E3", f: { sports: ["soccer"], roi: { min: 10 }, bets: { min: 30 } } },
   { name: "Early birds", sub: "Bet 24h+ before kickoff", color: "#ECE3FF", f: { timing: ["early"], roi: { min: 5 } } },
   { name: "Live bettors", sub: "Bet during the game", color: "#FFE0E3", f: { timing: ["live"], roi: { min: 0 } } },
   { name: "Consistent", sub: "Win rate 55%+, 100+ bets", color: "#F1F9C9", f: { winRate: { min: 55 }, bets: { min: 100 }, timeframe: "all" } },

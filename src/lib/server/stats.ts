@@ -2,7 +2,7 @@
 // combination (sports × timeframe × timing × ranges) works without precomputing.
 
 import { db } from "./db";
-import { DEFAULT_MIN_BETS, type BettorFilter, type BettorStats, type SportSlice, type TimingKey, timeframeSince } from "../filters";
+import { medianFromHist, DEFAULT_MIN_BETS, type BettorFilter, type BettorStats, type SportSlice, type TimingKey, timeframeSince } from "../filters";
 import { displayName } from "../polymarket";
 import { withBook } from "./bets";
 
@@ -91,10 +91,10 @@ export async function listBettors(f: BettorFilter, limit = 30, offset = 0): Prom
         (100.0 * SUM(d."profit") / GREATEST(SUM(d."staked"), 1))::float8 AS "roi",
         (100.0 * SUM(d."wins") / GREATEST(SUM(d."bets"), 1))::float8 AS "winRate",
         (SELECT COUNT(*) FROM "Follow" fo WHERE fo."bettorId" = b."address")::int AS "followers",
-        (SELECT COUNT(*) FROM "OpenPosition" o WHERE o."bettorId" = b."address" ${openSports})::int AS "openCount"
+        ${openSports ? `(SELECT COUNT(*) FROM "OpenPosition" o WHERE o."bettorId" = b."address" ${openSports})::int` : `b."openCount"`} AS "openCount"
       FROM "Bettor" b JOIN "DailyStat" d ON d."bettorId" = b."address"
-      WHERE b."isMarketMaker" = false AND ${where}
-      GROUP BY b."address"
+      WHERE b."isMarketMaker" = false AND ${f.timeframe === "all" ? `b."historyTruncated" = false AND ` : ""}${where}
+      GROUP BY b."address", b."openCount"
     ) t
     ${outer.length ? `WHERE ${outer.join(" AND ")}` : ""}`;
 
@@ -154,10 +154,10 @@ async function sportMix(addresses: string[], f: BettorFilter) {
 
 const TIMING_KEYS: TimingKey[] = ["early", "day", "late", "live", "futures"];
 
-type DailyRow = { sport: string; timing: string; bets: number; wins: number; staked: number; profit: number };
+type DailyRow = { sport: string; timing: string; bets: number; wins: number; staked: number; profit: number; leadHist?: number[] };
 
-/** Combine daily totals into a bettor's stats. `leads` = minutes before kickoff of their recent bets. */
-export function computeStats(rows: DailyRow[], leads: number[] = []): BettorStats {
+/** Combine daily totals into a bettor's stats; the typical lead time comes from the rows' lead histograms. */
+export function computeStats(rows: DailyRow[]): BettorStats {
   const sum = (rs: DailyRow[], k: "bets" | "wins" | "staked" | "profit") => rs.reduce((a, r) => a + r[k], 0);
   const bets = sum(rows, "bets");
   const wins = sum(rows, "wins");
@@ -166,7 +166,8 @@ export function computeStats(rows: DailyRow[], leads: number[] = []): BettorStat
   const timing = Object.fromEntries(TIMING_KEYS.map((k) => [k, 0])) as Record<TimingKey, number>;
   for (const r of rows) timing[r.timing as TimingKey] = (timing[r.timing as TimingKey] ?? 0) + r.bets;
   for (const k of TIMING_KEYS) timing[k] = bets ? timing[k] / bets : 0;
-  const sorted = [...leads].sort((a, b) => a - b);
+  const hist: number[] = [];
+  for (const r of rows) (r.leadHist ?? []).forEach((n, i) => (hist[i] = (hist[i] ?? 0) + n));
   const bySport = new Map<string, DailyRow[]>();
   for (const r of rows) bySport.set(r.sport, [...(bySport.get(r.sport) ?? []), r]);
   const sports: SportSlice[] = [...bySport.entries()]
@@ -185,7 +186,7 @@ export function computeStats(rows: DailyRow[], leads: number[] = []): BettorStat
     profit,
     roi: staked ? (100 * profit) / staked : 0,
     timing,
-    medianLeadMinutes: sorted.length ? sorted[Math.floor(sorted.length / 2)] : null,
+    medianLeadMinutes: medianFromHist(hist),
     sports,
   };
 }
@@ -197,15 +198,11 @@ export async function bettorStats(address: string, f: Pick<BettorFilter, "sports
     ...(f.sports.length ? { sport: { in: f.sports } } : {}),
     ...(f.timing.length ? { timing: { in: f.timing } } : {}),
   };
-  const [rows, recent] = await Promise.all([
-    db.dailyStat.findMany({ where: { ...filter, ...(day !== null ? { day: { gte: day } } : {}) }, select: { sport: true, timing: true, bets: true, wins: true, staked: true, profit: true } }),
-    // Median lead time comes from the bettor's most recent bets that match.
-    db.settledBet.findMany({ where: { ...filter, leadMinutes: { not: null } }, select: { leadMinutes: true } }),
-  ]);
-  return computeStats(
-    rows,
-    recent.map((r) => r.leadMinutes!),
-  );
+  const rows = await db.dailyStat.findMany({
+    where: { ...filter, ...(day !== null ? { day: { gte: day } } : {}) },
+    select: { sport: true, timing: true, bets: true, wins: true, staked: true, profit: true, leadHist: true },
+  });
+  return computeStats(rows);
 }
 
 export async function bettorProfile(address: string, f: BettorFilter) {
@@ -228,6 +225,8 @@ export async function bettorProfile(address: string, f: BettorFilter) {
       xUsername: bettor.xUsername,
       isMarketMaker: bettor.isMarketMaker,
       lastIndexedAt: bettor.lastIndexedAt?.toISOString() ?? null,
+      openCount: bettor.openCount,
+      historyTruncated: bettor.historyTruncated,
     },
     followers,
     filtered,
@@ -256,7 +255,7 @@ export type BettorProfile = NonNullable<Awaited<ReturnType<typeof bettorProfile>
 /** Headline numbers for the landing page, from real indexed data. */
 export async function landingStats() {
   const [tracked, perSport, top, winners] = await Promise.all([
-    db.bettor.count({ where: { isMarketMaker: false } }),
+    db.bettor.count({ where: { isMarketMaker: false, daily: { some: {} } } }),
     db.$queryRawUnsafe<{ sport: string; bettors: number; bets: number; best: number }[]>(
       `SELECT "sport", COUNT(DISTINCT "bettorId")::int AS "bettors", SUM("n")::int AS "bets", MAX("p")::float8 AS "best" FROM (
          SELECT d."sport" AS "sport", d."bettorId" AS "bettorId", SUM(d."bets") AS "n", SUM(d."profit") AS "p" FROM "DailyStat" d

@@ -3,29 +3,48 @@
 
 import { db } from "./db";
 import * as pm from "../polymarket";
-import { classifyEvent, loadLeagueCodes } from "../sports";
-import { timingFor } from "../filters";
+import { classifySlug, classifyTags, classifyWithMeta, loadLeagueCodes } from "../sports";
+import { LEAD_EDGES, leadBucket, timingFor } from "../filters";
 
 const MIN_STAKE = 1; // USD — ignore dust
-const RECENT_BETS_KEPT = 50;
+const RECENT_BETS_KEPT = 30;
+/** Largest open positions stored per bettor (the profile shows up to 60). */
+const OPEN_KEPT = 100;
+/** Position history read per bettor. Pages are 1,000 rows; very active accounts have more. */
+const MAX_CLOSED = 120_000;
+const MAX_OPEN = 20_000;
+/** Daily rows are kept for this many days (7d / 30d windows); older ones are merged per month. */
+const DAILY_DAYS = 35;
 
+/** Who counts as a top sports bettor worth tracking. */
+export const INCLUDE = { allTimeProfit: 10_000, monthProfit: 1_000, weekProfit: 1_000 };
+
+type Meta = { slug: string; title: string | null; isGame: boolean; startTime: Date | null; league: string | null; sport: string | null; fetchedAt: Date };
+
+/** Event details (title, start time, sport from Polymarket's tags), cached in EventMeta; missing ones come from Gamma. */
 export async function eventMeta(slugs: string[]) {
-  const unique = [...new Set(slugs)];
-  const known = await db.eventMeta.findMany({ where: { slug: { in: unique } } });
-  const map = new Map(known.map((e) => [e.slug, e]));
-  // Re-check game events that had no start time yet, at most once an hour.
-  const stale = (e: (typeof known)[number]) => e.isGame && !e.startTime && Date.now() - e.fetchedAt.getTime() > 3600_000;
+  const unique = [...new Set(slugs)].filter(Boolean);
+  const known = unique.length ? await db.eventMeta.findMany({ where: { slug: { in: unique } } }) : [];
+  const map = new Map<string, Meta>(known.map((e) => [e.slug, e]));
+  // Re-check game events that had no start time yet (at most once an hour), and rows saved before tags were stored.
+  const stale = (e: Meta) => (e.isGame && !e.startTime && Date.now() - e.fetchedAt.getTime() > 3600_000) || (e.sport === null && !classifySlug(e.slug));
   const missing = unique.filter((s) => !map.has(s) || stale(map.get(s)!));
   if (missing.length) {
     const events = await pm.gammaEvents(missing);
-    const rows = events.map((e) => ({
-      slug: e.slug,
-      title: e.title ?? null,
-      isGame: (e.tags ?? []).some((t) => t.slug === "games"),
-      startTime: e.startTime ? new Date(e.startTime) : null,
-      league: classifyEvent(e.slug, e.title)?.league ?? null,
-      fetchedAt: new Date(),
-    }));
+    const rows: Meta[] = events.map((e) => {
+      const tags = (e.tags ?? []).map((t) => t.slug);
+      const cls = classifySlug(e.slug) ?? classifyTags(tags);
+      return {
+        slug: e.slug,
+        // Non-sports events only need their "not sports" mark; skip the rest to keep the cache small.
+        title: cls ? (e.title ?? null) : null,
+        isGame: !!cls && tags.includes("games"),
+        startTime: cls && e.startTime ? new Date(e.startTime) : null,
+        league: cls?.league ?? null,
+        sport: cls?.sport ?? "",
+        fetchedAt: new Date(),
+      };
+    });
     for (const r of rows) map.set(r.slug, r);
     await upsertEvents(rows);
   }
@@ -33,20 +52,20 @@ export async function eventMeta(slugs: string[]) {
 }
 
 /** Bulk upsert in a few round trips (one query per 500 events), not one per event. */
-async function upsertEvents(rows: { slug: string; title: string | null; isGame: boolean; startTime: Date | null; league: string | null; fetchedAt: Date }[]) {
+async function upsertEvents(rows: Meta[]) {
   const unique = [...new Map(rows.map((r) => [r.slug, r])).values()];
   for (let i = 0; i < unique.length; i += 500) {
     const chunk = unique.slice(i, i + 500);
     const values: unknown[] = [];
     const tuples = chunk.map((r) => {
       const n = values.length;
-      values.push(r.slug, r.title, r.league, r.isGame, r.startTime, r.fetchedAt);
-      return `($${n + 1}, $${n + 2}, $${n + 3}, $${n + 4}, $${n + 5}, $${n + 6})`;
+      values.push(r.slug, r.title, r.league, r.isGame, r.startTime, r.sport, r.fetchedAt);
+      return `($${n + 1}, $${n + 2}, $${n + 3}, $${n + 4}, $${n + 5}, $${n + 6}, $${n + 7})`;
     });
     await db.$executeRawUnsafe(
-      `INSERT INTO "EventMeta" ("slug", "title", "league", "isGame", "startTime", "fetchedAt") VALUES ${tuples.join(",")}
+      `INSERT INTO "EventMeta" ("slug", "title", "league", "isGame", "startTime", "sport", "fetchedAt") VALUES ${tuples.join(",")}
        ON CONFLICT ("slug") DO UPDATE SET "title" = EXCLUDED."title", "league" = EXCLUDED."league", "isGame" = EXCLUDED."isGame",
-         "startTime" = EXCLUDED."startTime", "fetchedAt" = EXCLUDED."fetchedAt"`,
+         "startTime" = EXCLUDED."startTime", "sport" = EXCLUDED."sport", "fetchedAt" = EXCLUDED."fetchedAt"`,
       ...values,
     );
   }
@@ -68,7 +87,8 @@ export async function indexBettor(addressRaw: string, hint: IndexHint = {}) {
 
   // CLOSED = exited positions. OPEN is a superset: live positions plus resolved-but-unredeemed
   // ones (winners and losers), which come back with redeemable=true / status REDEEMABLE.
-  const [closed, openAll] = await Promise.all([pm.positions(address, "CLOSED", 3000), pm.positions(address, "OPEN", 3000)]);
+  const [closed, openAll] = await Promise.all([pm.positions(address, "CLOSED", MAX_CLOSED), pm.positions(address, "OPEN", MAX_OPEN)]);
+  const historyTruncated = closed.length >= MAX_CLOSED || openAll.length >= MAX_OPEN;
   const resolved = openAll.filter((p) => p.redeemable || p.status === "REDEEMABLE");
   const open = openAll.filter((p) => !(p.redeemable || p.status === "REDEEMABLE"));
 
@@ -83,15 +103,14 @@ export async function indexBettor(addressRaw: string, hint: IndexHint = {}) {
   const twoSided = [...sidesByCondition.values()].filter((s) => s.size > 1).length;
   const isMarketMaker = sidesByCondition.size >= 40 && twoSided / sidesByCondition.size > 0.35;
 
-  const settledSrc = [...closed, ...resolved]
-    .map((p) => ({ p, cls: classifyEvent(p.event_slug, p.title) }))
-    .filter((x) => x.cls !== null);
+  // Sport: league code in the slug, else Polymarket's own event tags (older markets have no league code).
+  const meta = await eventMeta(all.map((p) => p.event_slug));
+  const classify = (p: pm.Position) => classifyWithMeta(p.event_slug, p.title, meta.get(p.event_slug));
+  const settledSrc = [...closed, ...resolved].map((p) => ({ p, cls: classify(p) })).filter((x) => x.cls !== null);
   const openSrc = open
     .filter((p) => p.current_size > 0)
-    .map((p) => ({ p, cls: classifyEvent(p.event_slug, p.title) }))
+    .map((p) => ({ p, cls: classify(p) }))
     .filter((x) => x.cls !== null);
-
-  const meta = await eventMeta([...settledSrc, ...openSrc].map((x) => x.p.event_slug));
   const nowS = Math.floor(Date.now() / 1000);
 
   const settledRows = settledSrc
@@ -139,13 +158,20 @@ export async function indexBettor(addressRaw: string, hint: IndexHint = {}) {
   }
   const settled = [...settledMap.values()].filter((b) => b.cost >= MIN_STAKE);
 
-  // Stats are stored as daily totals; only the latest bets are kept individually.
-  const dailyMap = new Map<string, { bettorId: string; day: number; sport: string; timing: string; bets: number; wins: number; staked: number; profit: number }>();
+  // Stats are stored as daily totals (merged per month once older than DAILY_DAYS); only the latest bets are kept individually.
+  const today = Math.floor(nowS / 86400);
+  const bucket = (day: number) => {
+    if (day >= today - DAILY_DAYS) return day;
+    const d = new Date(day * 86400_000);
+    return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1) / 86400_000);
+  };
+  const dailyMap = new Map<string, { bettorId: string; day: number; sport: string; timing: string; bets: number; wins: number; staked: number; profit: number; leadHist: number[] }>();
   for (const b of settled) {
-    const day = Math.floor(b.settledTs / 86400);
+    const day = bucket(Math.floor(b.settledTs / 86400));
     const key = `${day}:${b.sport}:${b.timing}`;
-    const row = dailyMap.get(key) ?? { bettorId: address, day, sport: b.sport, timing: b.timing, bets: 0, wins: 0, staked: 0, profit: 0 };
+    const row = dailyMap.get(key) ?? { bettorId: address, day, sport: b.sport, timing: b.timing, bets: 0, wins: 0, staked: 0, profit: 0, leadHist: Array(LEAD_EDGES.length - 1).fill(0) };
     row.bets++;
+    if (b.leadMinutes !== null) row.leadHist[leadBucket(b.leadMinutes)]++;
     if (b.pnl > 0) row.wins++;
     row.staked += b.cost;
     row.profit += b.pnl;
@@ -154,7 +180,7 @@ export async function indexBettor(addressRaw: string, hint: IndexHint = {}) {
   const daily = [...dailyMap.values()];
   const recent = settled.sort((a, b) => b.settledTs - a.settledTs).slice(0, RECENT_BETS_KEPT);
 
-  const positions = openSrc.map(({ p, cls }) => {
+  const allPositions = openSrc.map(({ p, cls }) => {
     const m = meta.get(p.event_slug);
     const start = m?.startTime ?? null;
     const entryS = p.first_entry_at || p.last_event_at;
@@ -179,6 +205,7 @@ export async function indexBettor(addressRaw: string, hint: IndexHint = {}) {
       icon: p.icon || null,
     };
   });
+  const positions = allPositions.sort((a, b) => b.cost - a.cost).slice(0, OPEN_KEPT);
 
   const sample = all[0];
   const name = hint.name ?? sample?.name ?? null;
@@ -195,6 +222,8 @@ export async function indexBettor(addressRaw: string, hint: IndexHint = {}) {
     lbPnlMonth: hint.lbPnlMonth,
     lbPnlAll: hint.lbPnlAll,
     lbVolumeAll: hint.lbVolumeAll,
+    openCount: allPositions.length,
+    historyTruncated,
     lastIndexedAt: new Date(),
   };
 
@@ -208,7 +237,7 @@ export async function indexBettor(addressRaw: string, hint: IndexHint = {}) {
     db.openPosition.createMany({ data: positions }),
   ]);
 
-  return { address, settled: settled.length, open: positions.length, isMarketMaker };
+  return { address, settled: settled.length, open: allPositions.length, isMarketMaker, historyTruncated };
 }
 
 function stripUndefined<T extends object>(o: T): Partial<T> {
@@ -223,40 +252,49 @@ export async function ensureIndexed(address: string, maxAgeMs = 30 * 60_000) {
   return db.bettor.findUnique({ where: { address: address.toLowerCase() } });
 }
 
-/** Index the sports leaderboards. Run on a schedule by the worker (and `npm run index`). */
-export async function indexLeaderboards(
-  opts: { perBoard?: number; concurrency?: number; maxAgeMs?: number; log?: (s: string) => void; /** stop starting new bettors after this time (epoch ms) */ deadline?: number; maxBettors?: number } = {},
-) {
-  const { perBoard = 200, concurrency = 4, maxAgeMs = 60 * 60_000, log = () => {}, deadline = Infinity, maxBettors = Infinity } = opts;
-  const [month, week, all, vol] = await Promise.all([
-    pm.sportsLeaderboard("month", "PNL", perBoard),
-    pm.sportsLeaderboard("week", "PNL", Math.ceil(perBoard / 2)),
-    pm.sportsLeaderboard("all", "PNL", perBoard),
-    pm.sportsLeaderboard("month", "VOLUME", Math.ceil(perBoard / 2)),
+/** Everyone who passes INCLUDE on the sports leaderboards (all-time, 30-day and 7-day profit). */
+export async function trackedBettors() {
+  // The boards are sorted by profit, so read only as deep as the threshold reaches.
+  const [all, month, week] = await Promise.all([
+    pm.sportsLeaderboard("all", "PNL", 12_000),
+    pm.sportsLeaderboard("month", "PNL", 8_000),
+    pm.sportsLeaderboard("week", "PNL", 6_000),
   ]);
   const hints = new Map<string, IndexHint>();
   const add = (e: pm.LeaderboardEntry, extra: Partial<IndexHint>) => {
     const a = e.user_id.toLowerCase();
-    hints.set(a, {
-      ...hints.get(a),
-      name: e.user_name,
-      profileImage: e.profile_image,
-      xUsername: e.x_username,
-      verified: e.verified,
-      ...extra,
-    });
+    hints.set(a, { ...hints.get(a), name: e.user_name, profileImage: e.profile_image, xUsername: e.x_username, verified: e.verified, ...extra });
   };
-  month.forEach((e) => add(e, { lbPnlMonth: e.pnl }));
-  week.forEach((e) => add(e, {}));
-  all.forEach((e) => add(e, { lbPnlAll: e.pnl, lbVolumeAll: e.volume }));
-  vol.forEach((e) => add(e, {}));
+  all.filter((e) => e.pnl >= INCLUDE.allTimeProfit).forEach((e) => add(e, { lbPnlAll: e.pnl, lbVolumeAll: e.volume }));
+  month.filter((e) => e.pnl >= INCLUDE.monthProfit).forEach((e) => add(e, { lbPnlMonth: e.pnl }));
+  week.filter((e) => e.pnl >= INCLUDE.weekProfit).forEach((e) => add(e, {}));
+  // Leaderboard figures for bettors who made the list another way.
+  for (const e of all) if (hints.has(e.user_id.toLowerCase())) Object.assign(hints.get(e.user_id.toLowerCase())!, { lbPnlAll: e.pnl, lbVolumeAll: e.volume });
+  for (const e of month) if (hints.has(e.user_id.toLowerCase())) Object.assign(hints.get(e.user_id.toLowerCase())!, { lbPnlMonth: e.pnl });
+  return hints;
+}
 
-  const fresh = new Set(
-    (await db.bettor.findMany({ where: { lastIndexedAt: { gte: new Date(Date.now() - maxAgeMs) } }, select: { address: true } })).map((b) => b.address),
+/** Stable shard for an address (0 … of-1). */
+export const shardOf = (address: string, of: number) => parseInt(address.slice(-6), 16) % of;
+
+/**
+ * Index every tracked bettor, never-indexed and oldest first.
+ * Run on a schedule (cron / worker / `npm run index`); `shard`/`of` split the work across parallel runs.
+ */
+export async function indexLeaderboards(
+  opts: { concurrency?: number; maxAgeMs?: number; log?: (s: string) => void; /** stop starting new bettors after this time (epoch ms) */ deadline?: number; maxBettors?: number; shard?: number; of?: number } = {},
+) {
+  const { concurrency = 4, maxAgeMs = 20 * 3600_000, log = () => {}, deadline = Infinity, maxBettors = Infinity, shard = 0, of = 1 } = opts;
+  const hints = await trackedBettors();
+  const last = new Map(
+    (await db.bettor.findMany({ select: { address: true, lastIndexedAt: true } })).map((b) => [b.address, b.lastIndexedAt?.getTime() ?? 0]),
   );
-  const stale = [...hints.entries()].filter(([a]) => !fresh.has(a));
+  const cutoff = Date.now() - maxAgeMs;
+  const stale = [...hints.entries()]
+    .filter(([a]) => shardOf(a, of) === shard && (last.get(a) ?? 0) < cutoff)
+    .sort(([a], [b]) => (last.get(a) ?? 0) - (last.get(b) ?? 0));
   const queue = stale.slice(0, maxBettors);
-  log(`leaderboards: ${hints.size} bettors, ${stale.length} to index`);
+  log(`tracked: ${hints.size} bettors; shard ${shard}/${of}: ${stale.length} to index`);
   let done = 0;
   await Promise.all(
     Array.from({ length: concurrency }, async () => {
@@ -264,12 +302,12 @@ export async function indexLeaderboards(
         const [address, hint] = item;
         try {
           const r = await indexBettor(address, hint);
-          log(`[${++done}] ${address} ${r.settled} settled, ${r.open} open${r.isMarketMaker ? " (market maker)" : ""}`);
+          log(`[${++done}] ${address} ${r.settled} settled, ${r.open} open${r.isMarketMaker ? " (market maker)" : ""}${r.historyTruncated ? " (history truncated)" : ""}`);
         } catch (e) {
           log(`[${++done}] ${address} failed: ${(e as Error).message}`);
         }
       }
     }),
   );
-  return { total: hints.size, stale: stale.length, indexed: done };
+  return { total: hints.size, stale: stale.length, indexed: done, remaining: stale.length - done };
 }

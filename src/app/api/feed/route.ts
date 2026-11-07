@@ -1,7 +1,8 @@
 import { db } from "@/lib/server/db";
 import { getUser } from "@/lib/server/session";
 import * as pm from "@/lib/polymarket";
-import { classifyEvent, loadLeagueCodes } from "@/lib/sports";
+import { classifyWithMeta, loadLeagueCodes } from "@/lib/sports";
+import { eventMeta } from "@/lib/server/indexer";
 import { withBook } from "@/lib/server/bets";
 
 // Recent bets from everyone in the user's portfolio, newest first.
@@ -22,10 +23,11 @@ export async function GET() {
   await loadLeagueCodes();
   const follows = await db.follow.findMany({ where: { userId: user.id }, include: { bettor: true } });
   const lists = await Promise.all(follows.map(async (f) => ({ f, trades: await recentTrades(f.bettorId) })));
+  const meta = await eventMeta(lists.flatMap((l) => l.trades.map((t) => t.event_slug))).catch(() => new Map());
   const items = lists
     .flatMap(({ f, trades }) =>
       trades
-        .map((t) => ({ t, cls: classifyEvent(t.event_slug, t.title) }))
+        .map((t) => ({ t, cls: classifyWithMeta(t.event_slug, t.title, meta.get(t.event_slug)) }))
         .filter((x) => x.cls)
         .map(({ t, cls }) => ({
           id: `${t.transaction_hash}:${t.outcome_index}:${t.side}`,

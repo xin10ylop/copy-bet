@@ -25,6 +25,10 @@ model Bettor {
   lbPnlMonth     Float?
   lbPnlAll       Float?
   lbVolumeAll    Float?
+  /// all open sports positions (only the largest are stored individually)
+  openCount      Int      @default(0)
+  /// history longer than we could read: all-time figures cover the most recent positions only
+  historyTruncated Boolean @default(false)
   lastIndexedAt  DateTime?
   createdAt      DateTime @default(now())
 
@@ -46,6 +50,8 @@ model DailyStat {
   wins     Int
   staked   Float
   profit   Float
+  /// bets per lead-time bucket (see LEAD_EDGES), for "typically X before the game" over any filter
+  leadHist Int[]   @default([])
 
   bettor Bettor @relation(fields: [bettorId], references: [address], onDelete: Cascade)
 
@@ -112,6 +118,8 @@ model EventMeta {
   league      String?
   isGame      Boolean   @default(false)
   startTime   DateTime?
+  /// sport from Polymarket's own event tags ("" = not a sports event, null = not looked up yet)
+  sport       String?
   fetchedAt   DateTime  @default(now())
 }
 

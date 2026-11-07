@@ -122,7 +122,7 @@ function Discover({ bettors }: { bettors: PhoneBettor[] }) {
       <div className="text-[22px] leading-tight font-semibold tracking-[-0.03em]">Top bettors</div>
       <div className="mt-0.5 text-[11px] text-[#545c80]">Ranked by real results · last 30 days</div>
       <div className="mt-3 flex gap-1.5 overflow-hidden">
-        {["All", "Football", "Basketball", "Soccer"].map((c, i) => (
+        {["All", "Football", "Basketball", "Tennis"].map((c, i) => (
           <span key={c} className={clsx("shrink-0 rounded-full px-3 py-1.5 text-[11px] font-semibold", i === 0 ? "bg-[#10173a] text-white" : "bg-white")}>
             {c}
           </span>
