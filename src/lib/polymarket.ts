@@ -84,11 +84,11 @@ interface Page<T> {
 
 async function getJson<T>(url: string, attempt = 0): Promise<T> {
   const res = await fetch(url, { cache: "no-store", headers: { accept: "application/json" } });
-  if ((res.status === 429 || res.status >= 500) && attempt < 6) {
+  if ((res.status === 429 || res.status >= 500) && attempt < 9) {
     // Respect Retry-After when given, otherwise exponential backoff with jitter.
     const retryAfter = Number(res.headers.get("retry-after"));
     const wait = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 1000 * 2 ** attempt + Math.random() * 500;
-    await new Promise((r) => setTimeout(r, Math.min(wait, 30_000)));
+    await new Promise((r) => setTimeout(r, Math.min(wait, 45_000)));
     return getJson<T>(url, attempt + 1);
   }
   if (!res.ok) throw new Error(`Polymarket ${res.status} for ${url}`);
