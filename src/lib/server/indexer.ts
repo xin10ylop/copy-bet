@@ -115,7 +115,7 @@ export async function indexBettor(addressRaw: string, hint: IndexHint = {}) {
 
   const settledRows = settledSrc
     .map(({ p, cls }) => {
-      const cost = p.total_size > 0 ? p.avg_price * p.total_size : p.entry_cost_usdc;
+      const cost = pm.stakeOf(p);
       const pnl = p.status === "CLOSED" ? p.realized_pnl : (p.total_pnl ?? p.realized_pnl);
       const m = meta.get(p.event_slug);
       const start = m?.startTime ?? null;
@@ -125,6 +125,7 @@ export async function indexBettor(addressRaw: string, hint: IndexHint = {}) {
       const settledS = p.status === "CLOSED" ? p.last_event_at : Math.min(nowS, Math.max(p.last_event_at, endS || p.last_event_at));
       return {
         id: `${address}:${p.condition_id}:${p.outcome_index}`,
+        conditionId: p.condition_id,
         bettorId: address,
         sport: cls!.sport,
         league: cls!.league,
@@ -143,20 +144,23 @@ export async function indexBettor(addressRaw: string, hint: IndexHint = {}) {
       };
     })
     .filter((b) => Number.isFinite(b.cost) && Number.isFinite(b.pnl));
-  // The same market outcome can come back more than once (e.g. re-entered after selling): merge them.
-  const settledMap = new Map<string, (typeof settledRows)[number]>();
+  // One bet per market: rows for the same market (re-entries, or both sides held, e.g. after a "split")
+  // are combined. Polymarket books a split's cost on one side only, so per-side figures would be meaningless.
+  const settledMap = new Map<string, (typeof settledRows)[number] & { sideCost: number }>();
   for (const b of settledRows) {
-    const prev = settledMap.get(b.id);
+    const prev = settledMap.get(b.conditionId);
     if (!prev) {
-      settledMap.set(b.id, { ...b });
+      settledMap.set(b.conditionId, { ...b, sideCost: b.cost });
       continue;
     }
+    // Show the side they put the most money on.
+    if (b.cost > prev.sideCost) Object.assign(prev, { id: b.id, outcome: b.outcome, title: b.title, sideCost: b.cost });
     prev.cost += b.cost;
     prev.pnl += b.pnl;
     if (b.entryAt < prev.entryAt) Object.assign(prev, { entryAt: b.entryAt, leadMinutes: b.leadMinutes, timing: b.timing });
     if (b.settledTs > prev.settledTs) Object.assign(prev, { settledAt: b.settledAt, settledTs: b.settledTs });
   }
-  const settled = [...settledMap.values()].filter((b) => b.cost >= MIN_STAKE);
+  const settled = [...settledMap.values()].filter((b) => b.cost >= MIN_STAKE).map(({ conditionId: _c, sideCost: _s, ...b }) => b);
 
   // Stats are stored as daily totals (merged per month once older than DAILY_DAYS); only the latest bets are kept individually.
   const today = Math.floor(nowS / 86400);
@@ -196,7 +200,7 @@ export async function indexBettor(addressRaw: string, hint: IndexHint = {}) {
       outcomeIndex: p.outcome_index,
       size: p.current_size,
       avgPrice: p.avg_price,
-      cost: p.entry_cost_usdc || p.avg_price * p.current_size,
+      cost: p.total_cost_usdc || p.entry_cost_usdc || p.avg_price * p.current_size,
       currentValue: p.current_value,
       pnl: p.unrealized_pnl,
       entryAt: new Date(entryS * 1000),

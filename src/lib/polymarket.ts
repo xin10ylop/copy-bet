@@ -24,8 +24,14 @@ export interface Position {
   condition_id: string;
   current_size: number;
   avg_price: number;
+  /** cost of the shares still held (exact) */
   entry_cost_usdc: number;
+  /** trading fees paid on entry */
+  entry_fees_usdc?: number;
+  /** entry_cost_usdc + entry_fees_usdc */
   total_cost_usdc: number;
+  /** realized_pnl as a % of the (exact) entry cost, excluding fees */
+  percent_realized_pnl?: number;
   current_price: number;
   current_value: number;
   total_size: number;
@@ -112,6 +118,27 @@ async function paginate<T>(path: string, params: Record<string, string | number 
     cursor = page.pagination?.has_more ? page.pagination.next_cursor : null;
   } while (cursor && out.length < maxRows);
   return out.slice(0, maxRows);
+}
+
+/**
+ * What the bettor paid for a position, fees included, so a total loss is exactly -100%.
+ * avg_price has only 4 decimals (off by up to ~10% on long shots), so prefer the exact fields:
+ * the cost of shares still held (entry_cost_usdc), or the cost implied by the realized return %.
+ */
+export function stakeOf(p: Position): number {
+  const fees = p.entry_fees_usdc ?? 0;
+  if (p.status === "CLOSED") {
+    // Everything sold or redeemed: the realized return % pins down the exact cost.
+    const pct = p.percent_realized_pnl ?? 0;
+    if (Math.abs(pct) >= 0.5 && Math.abs(p.realized_pnl) > 0) {
+      const exact = p.realized_pnl / (pct / 100);
+      if (exact > 0 && Number.isFinite(exact)) return exact + fees;
+    }
+  } else if (p.current_size > 0 && p.entry_cost_usdc > 0 && p.current_size >= 0.2 * p.total_size) {
+    // Still (mostly) held: exact cost of the held shares, scaled up for any part sold.
+    return p.entry_cost_usdc * (p.total_size / p.current_size) + fees;
+  }
+  return p.avg_price * p.total_size + fees;
 }
 
 export function sportsLeaderboard(period: TimePeriod, sortBy: "PNL" | "VOLUME" = "PNL", max = 500) {
