@@ -22,11 +22,21 @@ export async function GET(req: Request) {
   const given = req.headers.get("authorization")?.replace(/^Bearer /, "") ?? url.searchParams.get("key");
   if (!secret || given !== secret) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const call = (params: Record<string, string | number>) => {
+  const call = async (params: Record<string, string | number>) => {
     const next = new URL(url.pathname, url.origin);
     for (const [k, v] of Object.entries(params)) next.searchParams.set(k, String(v));
-    // The target answers immediately ({ started: true }); we only wait for that.
-    return fetch(next, { headers: { authorization: `Bearer ${secret}` }, signal: AbortSignal.timeout(15_000) }).catch((e) => console.log("[index] hand-over failed", e));
+    // The target answers immediately ({ started: true }); we only wait for that, and retry if it didn't start.
+    for (let attempt = 1; attempt <= 4; attempt++) {
+      try {
+        const res = await fetch(next, { headers: { authorization: `Bearer ${secret}` }, cache: "no-store", signal: AbortSignal.timeout(20_000) });
+        const body = await res.text();
+        if (res.ok && body.includes('"started":true')) return console.log("[index] handed over", next.search);
+        console.log("[index] hand-over got", res.status, body.slice(0, 200), "attempt", attempt);
+      } catch (e) {
+        console.log("[index] hand-over failed", (e as Error).message, "attempt", attempt);
+      }
+      await new Promise((r) => setTimeout(r, 3_000 * attempt));
+    }
   };
 
   const shardParam = url.searchParams.get("shard");
