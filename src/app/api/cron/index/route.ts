@@ -4,9 +4,10 @@ import { indexBettor, indexLeaderboards, pruneUntracked, shardOf } from "@/lib/s
 
 // Refreshes every tracked bettor from Polymarket.
 // Called by Vercel Cron (Authorization: Bearer $CRON_SECRET) or manually with ?key=$CRON_SECRET.
-// A call without ?shard fans out into SHARDS parallel runs. Each run works for ~4.5 minutes in the
-// background and, while bettors are still waiting, hands over to a fresh run of the same shard
-// (up to MAX_HOPS times), so the whole list is refreshed without a long-running server.
+// A call without ?shard fans out into SHARDS parallel runs. Each run works for ~3.5 minutes in the
+// background and, while bettors are still waiting, hands over to a fresh run of the same shard.
+// Vercel allows only a few such hand-overs in a row (508 "infinite loop"), so one trigger refreshes
+// roughly 1,300-1,600 bettors, oldest first; the cron runs twice a day to cover everyone daily.
 export const maxDuration = 300;
 
 /** Stop starting new bettors and hand over to the next run after this long (in-flight ones may finish). */
@@ -31,7 +32,9 @@ export async function GET(req: Request) {
         const res = await fetch(next, { headers: { authorization: `Bearer ${secret}` }, cache: "no-store", signal: AbortSignal.timeout(20_000) });
         const body = await res.text();
         if (res.ok && body.includes('"started":true')) return console.log("[index] handed over", next.search);
-        console.log("[index] hand-over got", res.status, body.slice(0, 200), "attempt", attempt);
+        console.log("[index] hand-over got", res.status, body.slice(0, 120).replace(/\s+/g, " "), "attempt", attempt);
+        // Vercel stops a function calling itself more than a few times in a row: the next scheduled run carries on.
+        if (res.status === 508) return;
       } catch (e) {
         console.log("[index] hand-over failed", (e as Error).message, "attempt", attempt);
       }
