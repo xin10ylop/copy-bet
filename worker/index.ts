@@ -74,12 +74,28 @@ async function refreshBettor(address: string) {
 }
 
 let refreshing = 0;
+const LIVE_CONCURRENCY = 4;
+/** Accounts with this many bets take long to read: refresh them at most every BIG_MIN_GAP_MS. */
+const BIG_ACCOUNT_BETS = 5_000;
+const BIG_MIN_GAP_MS = 10 * 60_000;
+const lastRefresh = new Map<string, number>();
+const bigAccounts = new Set<string>();
+async function refreshBigAccounts() {
+  const rows = await db.$queryRawUnsafe<{ id: string }[]>(`SELECT "bettorId" AS id FROM "DailyStat" GROUP BY 1 HAVING SUM("bets") >= ${BIG_ACCOUNT_BETS}`);
+  bigAccounts.clear();
+  for (const r of rows) bigAccounts.add(r.id);
+}
+
 async function processDirty() {
   const now = Date.now();
-  for (const [wallet, d] of dirty) {
-    if (refreshing >= 2) return;
-    if (now - d.last < QUIET_MS && now - d.first < MAX_WAIT_MS) continue;
+  // Followed bettors first: their followers are looking at them.
+  const ready = [...dirty.entries()]
+    .filter(([w, d]) => (now - d.last >= QUIET_MS || now - d.first >= MAX_WAIT_MS) && !(bigAccounts.has(w) && now - (lastRefresh.get(w) ?? 0) < BIG_MIN_GAP_MS))
+    .sort(([a], [b]) => Number(followsByBettor.has(b)) - Number(followsByBettor.has(a)));
+  for (const [wallet] of ready) {
+    if (refreshing >= LIVE_CONCURRENCY) return;
     dirty.delete(wallet);
+    lastRefresh.set(wallet, now);
     refreshing++;
     refreshBettor(wallet)
       .catch((e) => log("[live] refresh failed", wallet, (e as Error).message))
@@ -427,6 +443,7 @@ async function main() {
   every(1_000, sendDue);
   // Live figures
   every(5_000, processDirty);
+  every(10 * 60_000, refreshBigAccounts, true);
   every(3 * 60_000, settleSweep, true);
   // Everyone else: keep refreshing, oldest first, so nobody is more than ~an hour old (also adds new leaders).
   if (process.env.INDEX_LEADERBOARDS !== "0")

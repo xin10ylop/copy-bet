@@ -167,14 +167,15 @@ async function auditBettors(pool: string[]) {
     for (const tf of ["7d", "30d", "all"] as const) {
       const app = views[tf].filtered;
       const ref = r.out[tf];
-      // Bets settling right at the index moment can land on either side: allow one bet of slack.
-      check(Math.abs(app.bets - ref.bets) <= 1, () => `${who} [${tf}] bets: app ${app.bets} vs raw ${ref.bets}`);
-      check(Math.abs(app.wins - ref.wins) <= 1, () => `${who} [${tf}] wins: app ${app.wins} vs raw ${ref.wins}`);
-      check(close(app.profit, ref.profit, 5, 0.002), () => `${who} [${tf}] profit: app ${money(app.profit)} vs raw ${money(ref.profit)}`);
-      check(close(app.staked, ref.staked, 5, 0.002), () => `${who} [${tf}] staked: app ${money(app.staked)} vs raw ${money(ref.staked)}`);
+      // Only bets that settled around the index moment may differ (they can land on either side of the snapshot).
+      const slack = ref.edge.bets + 1;
+      check(Math.abs(app.bets - ref.bets) <= slack, () => `${who} [${tf}] bets: app ${app.bets} vs raw ${ref.bets}`);
+      check(Math.abs(app.wins - ref.wins) <= slack, () => `${who} [${tf}] wins: app ${app.wins} vs raw ${ref.wins}`);
+      check(close(app.profit, ref.profit, 5 + ref.edge.profit, 0.002), () => `${who} [${tf}] profit: app ${money(app.profit)} vs raw ${money(ref.profit)}`);
+      check(close(app.staked, ref.staked, 5 + ref.edge.staked, 0.002), () => `${who} [${tf}] staked: app ${money(app.staked)} vs raw ${money(ref.staked)}`);
       for (const sl of app.sports) {
         const rs = ref.sports[sl.sport] ?? { bets: 0, profit: 0 };
-        check(Math.abs(sl.bets - rs.bets) <= 1 && close(sl.profit, rs.profit, 5, 0.002), () => `${who} [${tf}] ${sl.sport}: app ${sl.bets} bets ${money(sl.profit)} vs raw ${rs.bets} bets ${money(rs.profit)}`);
+        check(Math.abs(sl.bets - rs.bets) <= slack && close(sl.profit, rs.profit, 5 + ref.edge.profit, 0.002), () => `${who} [${tf}] ${sl.sport}: app ${sl.bets} bets ${money(sl.profit)} vs raw ${rs.bets} bets ${money(rs.profit)}`);
       }
       for (const [t, share] of Object.entries(app.timing)) {
         const refShare = ref.bets ? (ref.timing[t] ?? 0) / ref.bets : 0;

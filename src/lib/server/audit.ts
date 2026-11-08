@@ -60,7 +60,15 @@ function stake(p: pm.Position) {
   return p.avg_price * p.total_size + fees;
 }
 
-export type Recomputed = Record<(typeof TIMEFRAMES)[number], { bets: number; wins: number; staked: number; profit: number; sports: Record<string, { bets: number; profit: number }>; timing: Record<string, number> }>;
+/**
+ * `edge` = bets that settled within EDGE_S of the index moment. Indexing a big account takes a while, so these can
+ * legitimately land on either side of the snapshot; the comparison allows exactly that much difference, no more.
+ */
+export type Recomputed = Record<
+  (typeof TIMEFRAMES)[number],
+  { bets: number; wins: number; staked: number; profit: number; sports: Record<string, { bets: number; profit: number }>; timing: Record<string, number>; edge: { bets: number; staked: number; profit: number } }
+>;
+const EDGE_S = 5 * 60;
 
 /** All settled sports bets of a bettor as of `asOfS`, rebuilt from scratch: one bet per market, stake incl. fees. */
 export async function recomputeFromRaw(address: string, asOfS: number): Promise<Recomputed> {
@@ -80,13 +88,15 @@ export async function recomputeFromRaw(address: string, asOfS: number): Promise<
     if (m) Object.assign(m, { cost: m.cost + stake(p), pnl: m.pnl + pnl, settled: Math.max(m.settled, settled), entry: Math.min(m.entry, entry) });
     else markets.set(p.condition_id, { sport, cost: stake(p), pnl, settled, entry, slug: p.event_slug });
   }
-  const bets = [...markets.values()].filter((b) => b.cost >= 1 && b.settled <= asOfS + 60);
+  const bets = [...markets.values()].filter((b) => b.cost >= 1 && b.settled <= asOfS + EDGE_S);
   const from = { "7d": Math.floor((asOfS - 7 * 86400) / 86400), "30d": Math.floor((asOfS - 30 * 86400) / 86400), all: -Infinity };
   const out = {} as Recomputed;
   for (const tf of TIMEFRAMES) {
-    const o: Recomputed[typeof tf] = (out[tf] = { bets: 0, wins: 0, staked: 0, profit: 0, sports: {}, timing: {} });
+    const o: Recomputed[typeof tf] = (out[tf] = { bets: 0, wins: 0, staked: 0, profit: 0, sports: {}, timing: {}, edge: { bets: 0, staked: 0, profit: 0 } });
     for (const b of bets) {
       if (Math.floor(b.settled / 86400) < from[tf]) continue;
+      if (Math.abs(b.settled - asOfS) <= EDGE_S) Object.assign(o.edge, { bets: o.edge.bets + 1, staked: o.edge.staked + b.cost, profit: o.edge.profit + Math.abs(b.pnl) });
+      if (b.settled > asOfS + 60) continue; // after the snapshot: only counted as edge
       o.bets++;
       if (b.pnl > 0) o.wins++;
       o.staked += b.cost;
@@ -112,13 +122,14 @@ export async function recomputeBettor(address: string): Promise<string[]> {
   for (const tf of TIMEFRAMES) {
     const app = await bettorStats(address, { sports: [], timing: [], timeframe: tf });
     const r = ref[tf];
-    // A bet settling right at the index moment can land on either side: one bet of slack.
-    if (Math.abs(app.bets - r.bets) > 1 || Math.abs(app.wins - r.wins) > 1) issues.push(`[${tf}] ${app.bets} bets/${app.wins} wins, raw data says ${r.bets}/${r.wins}`);
-    if (!close(app.profit, r.profit, 5, 0.002)) issues.push(`[${tf}] profit ${usd(app.profit)}, raw data says ${usd(r.profit)}`);
-    if (!close(app.staked, r.staked, 5, 0.002)) issues.push(`[${tf}] staked ${usd(app.staked)}, raw data says ${usd(r.staked)}`);
+    // Only bets that settled around the index moment may differ (see EDGE_S), plus rounding.
+    const slack = r.edge.bets + 1;
+    if (Math.abs(app.bets - r.bets) > slack || Math.abs(app.wins - r.wins) > slack) issues.push(`[${tf}] ${app.bets} bets/${app.wins} wins, raw data says ${r.bets}/${r.wins}`);
+    if (!close(app.profit, r.profit, 5 + r.edge.profit, 0.002)) issues.push(`[${tf}] profit ${usd(app.profit)}, raw data says ${usd(r.profit)}`);
+    if (!close(app.staked, r.staked, 5 + r.edge.staked, 0.002)) issues.push(`[${tf}] staked ${usd(app.staked)}, raw data says ${usd(r.staked)}`);
     for (const sl of app.sports) {
       const rs = r.sports[sl.sport] ?? { bets: 0, profit: 0 };
-      if (Math.abs(sl.bets - rs.bets) > 1 || !close(sl.profit, rs.profit, 5, 0.002)) issues.push(`[${tf}] ${sl.sport}: ${sl.bets} bets ${usd(sl.profit)}, raw data says ${rs.bets} bets ${usd(rs.profit)}`);
+      if (Math.abs(sl.bets - rs.bets) > slack || !close(sl.profit, rs.profit, 5 + r.edge.profit, 0.002)) issues.push(`[${tf}] ${sl.sport}: ${sl.bets} bets ${usd(sl.profit)}, raw data says ${rs.bets} bets ${usd(rs.profit)}`);
     }
     for (const [t, share] of Object.entries(app.timing)) {
       const rs = r.bets ? (r.timing[t] ?? 0) / r.bets : 0;
