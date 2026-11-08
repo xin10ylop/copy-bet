@@ -115,6 +115,41 @@ async function settleSweep() {
   if (rows.length) log(`[live] ${rows.length} bettors with finished games queued`);
 }
 
+/** A bet just placed, shown in the bettor's open bets within seconds (stake, odds, returns). */
+async function showOpenBetNow(bet: PendingBet, cls: { sport: string; league: string }, ev: { start: Date | null }, timing: TimingKey, price: number) {
+  const existing = await db.openPosition.findFirst({ where: { bettorId: bet.wallet, eventSlug: bet.eventSlug, title: bet.title, outcome: bet.outcome } });
+  if (existing) {
+    // Adding to a bet they already hold: same slip, bigger stake.
+    const size = existing.size + bet.shares;
+    const cost = existing.cost + bet.usd;
+    await db.openPosition.update({ where: { id: existing.id }, data: { size, cost, avgPrice: size ? cost / size : existing.avgPrice } });
+    return;
+  }
+  await db.openPosition.upsert({
+    where: { id: `${bet.wallet}:live:${bet.txHash}:${bet.outcomeIndex}` },
+    update: {},
+    create: {
+      id: `${bet.wallet}:live:${bet.txHash}:${bet.outcomeIndex}`,
+      bettorId: bet.wallet,
+      sport: cls.sport,
+      league: cls.league,
+      eventSlug: bet.eventSlug,
+      title: bet.title,
+      outcome: bet.outcome,
+      outcomeIndex: bet.outcomeIndex,
+      size: bet.shares,
+      avgPrice: price,
+      cost: bet.usd,
+      currentValue: bet.usd,
+      pnl: 0,
+      entryAt: new Date(),
+      gameStartAt: ev.start,
+      timing,
+    },
+  });
+  await db.bettor.update({ where: { address: bet.wallet }, data: { openCount: { increment: 1 } } }).catch(() => {});
+}
+
 // ─── Continuous audit ────────────────────────────────────────────────────────
 const ADMIN_CHAT = process.env.ADMIN_TELEGRAM_CHAT_ID;
 const lastAdminAlert = new Map<string, number>();
@@ -201,7 +236,7 @@ function onTrade(t: RtdsTrade) {
     counters.trades++;
     markDirty(wallet);
   }
-  if (!followsByBettor.has(wallet)) return;
+  if (!tracked.has(wallet) && !followsByBettor.has(wallet)) return;
   const key = `${wallet}:${t.conditionId}:${t.outcomeIndex}:${t.side}`;
   const prev = pending.get(key);
   if (prev) {
@@ -240,12 +275,14 @@ function startsIn(start: Date | null) {
 async function handleBet(bet: PendingBet) {
   const cls = await classifyBet(bet.eventSlug, bet.title);
   if (!cls) return; // not a sports market
-  const followers = followsByBettor.get(bet.wallet) ?? [];
-  if (!followers.length) return;
   const ev = await eventInfo(bet.eventSlug);
   const lead = ev.start ? Math.round((ev.start.getTime() - Date.now()) / 60000) : null;
   const timing: TimingKey = timingFor(lead, ev.isGame);
   const price = bet.shares ? bet.usd / bet.shares : 0;
+  // Show the new bet on their profile right away; the full re-read ~30 s later replaces it with the exact figures.
+  if (bet.side === "BUY") await showOpenBetNow(bet, cls, ev, timing, price).catch((e) => log("[live] open bet", (e as Error).message));
+  const followers = followsByBettor.get(bet.wallet) ?? [];
+  if (!followers.length) return;
   const now = new Date();
   let queued = 0;
 
