@@ -321,12 +321,11 @@ function PositionsBlock({ positions, stored, total }: { positions: Data["positio
                   {p.bet.market} · {p.bet.event || leagueLabel(p.league)}{p.gameStartAt ? ` · ${gameTime(p.gameStartAt)}` : ""}
                 </span>
               </span>
-              <span className="text-right">
+              {/* Like a bet slip: what they staked and what it returns if it wins. No live profit:
+                  that moves with the market price, which a sportsbook bettor can't trade on. */}
+              <span className="shrink-0 text-right">
                 <span className="num block text-[15px] font-semibold">{formatUsd(p.cost)}</span>
-                <span className={clsx("num block text-[12px] font-semibold", p.pnl >= 0 ? "text-win" : "text-loss")}>
-                  {p.pnl >= 0 ? "+" : ""}
-                  {formatUsd(p.pnl)}
-                </span>
+                <span className="num block text-[12px] text-ink-3">returns {formatUsd(p.size)}</span>
               </span>
             </div>
           ))}

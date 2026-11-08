@@ -53,12 +53,13 @@ function betWhere(f: Pick<BettorFilter, "sports" | "timing" | "timeframe">, p: P
   return clauses.length ? clauses.join(" AND ") : "TRUE";
 }
 
+// Address breaks ties, so paging through results never repeats or skips a bettor.
 const SORT_SQL: Record<BettorFilter["sort"], string> = {
-  roi: `"roi" DESC`,
-  profit: `"profit" DESC`,
-  winRate: `"winRate" DESC`,
-  followers: `"followers" DESC, "profit" DESC`,
-  bets: `"bets" DESC`,
+  roi: `"roi" DESC, "address"`,
+  profit: `"profit" DESC, "address"`,
+  winRate: `"winRate" DESC, "roi" DESC, "address"`,
+  followers: `"followers" DESC, "profit" DESC, "address"`,
+  bets: `"bets" DESC, "roi" DESC, "address"`,
 };
 
 export async function listBettors(f: BettorFilter, limit = 30, offset = 0): Promise<{ rows: BettorRow[]; total: number }> {
@@ -232,7 +233,8 @@ export async function bettorProfile(address: string, f: BettorFilter) {
     filtered,
     everything: everything ?? filtered,
     narrowed,
-    positions: (await withBook(positions)).map((p) => ({ ...p, entryAt: p.entryAt.toISOString(), gameStartAt: p.gameStartAt?.toISOString() ?? null })),
+    // Open bets: stake, odds and potential return only. Live profit follows the market price, which isn't a sportsbook figure.
+    positions: (await withBook(positions)).map(({ pnl: _pnl, currentValue: _cv, ...p }) => ({ ...p, entryAt: p.entryAt.toISOString(), gameStartAt: p.gameStartAt?.toISOString() ?? null })),
     recent: (await withBook(recent.map((r) => ({ ...r, outcomeIndex: Number(r.id.split(":")[2]) })))).map((r) => ({
       id: r.id,
       sport: r.sport,
