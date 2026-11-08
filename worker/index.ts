@@ -5,7 +5,11 @@
 //    Pro: sent immediately. Free: sent FREE_DELAY_MINUTES later.
 // 3. Sends queued alerts within Telegram's rate limits.
 // 4. Links Telegram chats to CopyBet accounts via /start <token>.
-// 5. Re-indexes leaderboards and followed bettors on a schedule.
+// 5. Keeps every tracked bettor's figures live: re-indexes a bettor ~30s after they trade, re-checks bettors
+//    whose games have likely ended (so results settle within minutes), and refreshes everyone else hourly.
+// 6. Audits itself all the time: checks every refreshed bettor, recomputes a random bettor from Polymarket's
+//    raw data every few minutes, and checks a random filter/sort combination of the rankings. Results go to the
+//    AuditCheck table (shown at /api/status); failures are sent to ADMIN_TELEGRAM_CHAT_ID when set.
 //
 // Run: npm run worker   (needs DATABASE_URL; TELEGRAM_BOT_TOKEN optional — without it alerts are logged)
 
@@ -14,6 +18,8 @@ import { classifySlug, classifyWithMeta, leagueLabel, loadLeagueCodes, sportLabe
 import { formatOdds, formatPct, formatUsd, timingFor, type TimingKey } from "../src/lib/filters";
 import { bettorStats } from "../src/lib/server/stats";
 import { eventMeta, indexBettor, indexLeaderboards } from "../src/lib/server/indexer";
+import { checkBettor, checkRankings, pruneChecks, randomFilter, recomputeBettor, recordCheck } from "../src/lib/server/audit";
+import { describeFilter } from "../src/lib/filters";
 import { displayName } from "../src/lib/polymarket";
 import { FREE_DELAY_MINUTES } from "../src/lib/server/session";
 import { escapeHtml, pollUpdates, sendMessage, telegramEnabled } from "./telegram";
@@ -37,6 +43,94 @@ async function refreshFollows() {
   const map = new Map<string, FollowRow[]>();
   for (const r of rows) map.set(r.bettorId, [...(map.get(r.bettorId) ?? []), r]);
   followsByBettor = map;
+}
+
+// ─── Live figures: every tracked bettor is re-indexed shortly after they trade ─
+let tracked = new Set<string>();
+async function refreshTracked() {
+  tracked = new Set((await db.bettor.findMany({ select: { address: true } })).map((b) => b.address));
+}
+/** wallet -> { first: first unprocessed trade, last: latest trade } */
+const dirty = new Map<string, { first: number; last: number }>();
+const QUIET_MS = 30_000; // wait for a burst of fills to finish…
+const MAX_WAIT_MS = 120_000; // …but never longer than this for a bettor who keeps trading
+const counters = { trades: 0, refreshed: 0, issues: 0 };
+
+function markDirty(wallet: string) {
+  const now = Date.now();
+  const d = dirty.get(wallet);
+  dirty.set(wallet, { first: d?.first ?? now, last: now });
+}
+
+async function refreshBettor(address: string) {
+  await indexBettor(address);
+  counters.refreshed++;
+  const issues = await checkBettor(address);
+  if (issues.length) {
+    counters.issues++;
+    await recordCheck("bettor", address, issues);
+    await notifyAdmin(`Check failed for bettor ${address}`, issues);
+  }
+}
+
+let refreshing = 0;
+async function processDirty() {
+  const now = Date.now();
+  for (const [wallet, d] of dirty) {
+    if (refreshing >= 2) return;
+    if (now - d.last < QUIET_MS && now - d.first < MAX_WAIT_MS) continue;
+    dirty.delete(wallet);
+    refreshing++;
+    refreshBettor(wallet)
+      .catch((e) => log("[live] refresh failed", wallet, (e as Error).message))
+      .finally(() => refreshing--);
+  }
+}
+
+/** Bets settle when a game ends, not when the bettor trades: re-check bettors holding bets on games that have likely finished. */
+async function settleSweep() {
+  const rows = await db.$queryRawUnsafe<{ id: string }[]>(
+    `SELECT DISTINCT o."bettorId" AS id FROM "OpenPosition" o JOIN "Bettor" b ON b."address" = o."bettorId"
+     WHERE o."gameStartAt" < NOW() - INTERVAL '150 minutes' AND o."gameStartAt" > NOW() - INTERVAL '4 days'
+       AND (b."lastIndexedAt" IS NULL OR b."lastIndexedAt" < NOW() - INTERVAL '30 minutes')
+     LIMIT 200`,
+  );
+  for (const r of rows) if (!dirty.has(r.id)) dirty.set(r.id, { first: 0, last: 0 });
+  if (rows.length) log(`[live] ${rows.length} bettors with finished games queued`);
+}
+
+// ─── Continuous audit ────────────────────────────────────────────────────────
+const ADMIN_CHAT = process.env.ADMIN_TELEGRAM_CHAT_ID;
+const lastAdminAlert = new Map<string, number>();
+async function notifyAdmin(title: string, issues: string[]) {
+  log(`[audit] ${title}:`, issues.slice(0, 5).join(" | "));
+  if (!ADMIN_CHAT || !telegramEnabled) return;
+  if (Date.now() - (lastAdminAlert.get(title) ?? 0) < 3600_000) return; // at most hourly per subject
+  lastAdminAlert.set(title, Date.now());
+  await sendMessage(ADMIN_CHAT, `⚠️ <b>${escapeHtml(title)}</b>\n${issues.slice(0, 8).map((i) => `• ${escapeHtml(i)}`).join("\n")}`, [[{ text: "Status", url: `${APP_URL}/api/status` }]]).catch(() => {});
+}
+
+async function auditRecompute() {
+  const [b] = await db.$queryRawUnsafe<{ address: string }[]>(
+    `SELECT "address" FROM "Bettor" WHERE "historyTruncated" = false AND "lastIndexedAt" > NOW() - INTERVAL '6 hours' ORDER BY random() LIMIT 1`,
+  );
+  if (!b) return;
+  const issues = await recomputeBettor(b.address);
+  await recordCheck("recompute", b.address, issues);
+  if (issues.length) await notifyAdmin(`Figures differ from Polymarket for ${b.address}`, issues);
+}
+
+async function auditRankings() {
+  const f = randomFilter();
+  const label = `${f.timeframe} · sort ${f.sort}${describeFilter(f, sportLabel).length ? ` · ${describeFilter(f, sportLabel).join(", ")}` : ""}`;
+  const issues = await checkRankings(f);
+  await recordCheck("rankings", label, issues);
+  if (issues.length) await notifyAdmin(`Rankings check failed (${label})`, issues);
+}
+
+async function heartbeat() {
+  const issues = [`trades from tracked bettors: ${counters.trades}`, `bettors refreshed: ${counters.refreshed}`, `waiting: ${dirty.size}`, `failed checks: ${counters.issues}`];
+  await db.auditCheck.upsert({ where: { id: "heartbeat" }, create: { id: "heartbeat", kind: "heartbeat", subject: "worker", ok: true, issues }, update: { at: new Date(), issues } });
 }
 
 // ─── Event start times (for timing rules + "starts in 3h") ───────────────────
@@ -86,7 +180,12 @@ const pending = new Map<string, PendingBet>();
 
 function onTrade(t: RtdsTrade) {
   const wallet = t.proxyWallet?.toLowerCase();
-  if (!wallet || !followsByBettor.has(wallet)) return;
+  if (!wallet) return;
+  if (tracked.has(wallet)) {
+    counters.trades++;
+    markDirty(wallet);
+  }
+  if (!followsByBettor.has(wallet)) return;
   const key = `${wallet}:${t.conditionId}:${t.outcomeIndex}:${t.side}`;
   const prev = pending.get(key);
   if (prev) {
@@ -300,13 +399,6 @@ async function onTelegramMessage(m: { chat: { id: number }; from?: { username?: 
   await sendMessage(chatId, `Commands:\n/list: who you follow`, [[{ text: "Open CopyBet", url: `${APP_URL}/app` }]]);
 }
 
-// ─── Scheduled re-indexing ───────────────────────────────────────────────────
-async function reindexFollowed() {
-  const ids = [...followsByBettor.keys()];
-  for (const a of ids) await indexBettor(a).catch((e) => log("[index] failed", a, (e as Error).message));
-  if (ids.length) log(`[index] refreshed ${ids.length} followed bettors`);
-}
-
 function every(ms: number, fn: () => Promise<unknown>, runNow = false) {
   let running = false;
   const tick = async () => {
@@ -327,12 +419,23 @@ function every(ms: number, fn: () => Promise<unknown>, runNow = false) {
 async function main() {
   await loadLeagueCodes();
   await refreshFollows();
-  log(`[worker] ${followsByBettor.size} followed bettors · telegram ${telegramEnabled ? "on" : "off (dry run)"}`);
+  await refreshTracked();
+  log(`[worker] ${tracked.size} tracked · ${followsByBettor.size} followed · telegram ${telegramEnabled ? "on" : "off (dry run)"}`);
   connectRealtime();
   every(5_000, refreshFollows);
+  every(60_000, refreshTracked);
   every(1_000, sendDue);
-  every(15 * 60_000, reindexFollowed);
-  if (process.env.INDEX_LEADERBOARDS !== "0") every(60 * 60_000, () => indexLeaderboards({ log: (s) => log("[index]", s) }), true);
+  // Live figures
+  every(5_000, processDirty);
+  every(3 * 60_000, settleSweep, true);
+  // Everyone else: keep refreshing, oldest first, so nobody is more than ~an hour old (also adds new leaders).
+  if (process.env.INDEX_LEADERBOARDS !== "0")
+    every(5 * 60_000, () => indexLeaderboards({ concurrency: 2, maxAgeMs: 60 * 60_000, deadline: Date.now() + 4.5 * 60_000, log: (s) => log("[index]", s) }), true);
+  // Continuous audit
+  every(5 * 60_000, auditRecompute);
+  every(10 * 60_000, auditRankings);
+  every(60_000, heartbeat, true);
+  every(60 * 60_000, pruneChecks);
   void pollUpdates(onTelegramMessage);
 }
 

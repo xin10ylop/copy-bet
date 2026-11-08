@@ -195,3 +195,17 @@ model AlertLog {
   @@index([sentAt, sendAt])
   @@index([userId, detectedAt])
 }
+
+/// Results of the continuous self-checks (worker) and status signals. Kept for a week.
+model AuditCheck {
+  id      String   @id @default(cuid())
+  at      DateTime @default(now())
+  /// "bettor" (consistency after a refresh), "recompute" (vs Polymarket raw data), "rankings" (a filter combination), "heartbeat"
+  kind    String
+  subject String
+  ok      Boolean
+  issues  String[]
+
+  @@index([at])
+  @@index([kind, at])
+}

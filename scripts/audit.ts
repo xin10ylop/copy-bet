@@ -15,8 +15,7 @@
 // Exit code 1 when anything fails.
 
 import { writeFileSync } from "fs";
-import * as pm from "../src/lib/polymarket";
-import { classifySlug, classifyTags, classifyKeywords, loadLeagueCodes } from "../src/lib/sports";
+import { recomputeFromRaw } from "../src/lib/server/audit";
 
 const args = process.argv.slice(2);
 const arg = (k: string, d: string) => {
@@ -148,83 +147,10 @@ async function auditListVsProfile(samples: { address: string; q: Record<string, 
   }
 }
 
-// ─── 3. Independent recompute from Polymarket raw data ──────────────────────
-const DAY = 86400;
-const LEAD_TIMING = (lead: number | null, isGame: boolean) => (!isGame || lead === null ? "futures" : lead < 0 ? "live" : lead < 60 ? "late" : lead < 1440 ? "day" : "early");
-const gammaCache = new Map<string, { sport: string | null; isGame: boolean; start: number | null }>();
-
-async function gamma(slugs: string[]) {
-  const missing = [...new Set(slugs)].filter((s) => !gammaCache.has(s));
-  for (let i = 0; i < missing.length; i += 40) {
-    const chunk = missing.slice(i, i + 40);
-    const events = await pm.gammaEvents(chunk);
-    for (const e of events) {
-      const tags = (e.tags ?? []).map((t) => t.slug);
-      const cls = classifySlug(e.slug) ?? classifyTags(tags);
-      gammaCache.set(e.slug, { sport: cls?.sport ?? null, isGame: !!cls && tags.includes("games"), start: e.startTime ? Date.parse(e.startTime) / 1000 : null });
-    }
-    for (const s of chunk) if (!gammaCache.has(s)) gammaCache.set(s, { sport: classifySlug(s)?.sport ?? null, isGame: false, start: null });
-  }
-}
-
-/** Stake the way a sportsbook would count it: what was paid, fees included (exact cost fields over the rounded avg price). */
-function stake(p: pm.Position) {
-  const fees = p.entry_fees_usdc ?? 0;
-  if (p.status === "CLOSED") {
-    const pct = p.percent_realized_pnl ?? 0;
-    if (Math.abs(pct) >= 0.5 && Math.abs(p.realized_pnl) > 0) {
-      const exact = p.realized_pnl / (pct / 100);
-      if (exact > 0) return exact + fees;
-    }
-  } else if (p.current_size > 0 && p.entry_cost_usdc > 0 && p.current_size >= 0.2 * p.total_size) return p.entry_cost_usdc * (p.total_size / p.current_size) + fees;
-  return p.avg_price * p.total_size + fees;
-}
-
-async function recompute(address: string, asOfS: number) {
-  const [closed, open] = await Promise.all([pm.positions(address, "CLOSED", 50_000), pm.positions(address, "OPEN", 10_000)]);
-  await gamma([...closed, ...open].filter((p) => !classifySlug(p.event_slug)).map((p) => p.event_slug));
-  await gamma([...closed, ...open].filter((p) => classifySlug(p.event_slug)).map((p) => p.event_slug));
-  const sportOf = (p: pm.Position) => classifySlug(p.event_slug)?.sport ?? gammaCache.get(p.event_slug)?.sport ?? classifyKeywords(p.event_slug, p.title)?.sport ?? null;
-  type B = { sport: string; cost: number; pnl: number; settled: number; entry: number; slug: string };
-  const markets = new Map<string, B>();
-  for (const p of [...closed, ...open.filter((q) => q.redeemable || q.status === "REDEEMABLE")]) {
-    const sport = sportOf(p);
-    if (!sport) continue;
-    const pnl = p.status === "CLOSED" ? p.realized_pnl : (p.total_pnl ?? p.realized_pnl);
-    const end = p.end_date ? Date.parse(p.end_date) / 1000 : 0;
-    const settled = p.status === "CLOSED" ? p.last_event_at : Math.min(asOfS, Math.max(p.last_event_at, end || p.last_event_at));
-    const entry = p.first_entry_at || p.last_event_at;
-    const m = markets.get(p.condition_id);
-    if (m) Object.assign(m, { cost: m.cost + stake(p), pnl: m.pnl + pnl, settled: Math.max(m.settled, settled), entry: Math.min(m.entry, entry) });
-    else markets.set(p.condition_id, { sport, cost: stake(p), pnl, settled, entry, slug: p.event_slug });
-  }
-  const bets = [...markets.values()].filter((b) => b.cost >= 1 && b.settled <= asOfS + 60);
-  const window = (tf: string) => (tf === "7d" ? Math.floor((asOfS - 7 * DAY) / DAY) : tf === "30d" ? Math.floor((asOfS - 30 * DAY) / DAY) : -Infinity);
-  const out: Record<string, { bets: number; wins: number; staked: number; profit: number; sports: Record<string, { bets: number; profit: number }>; timing: Record<string, number> }> = {};
-  for (const tf of ["7d", "30d", "all"]) {
-    const o = (out[tf] = { bets: 0, wins: 0, staked: 0, profit: 0, sports: {} as Record<string, { bets: number; profit: number }>, timing: {} as Record<string, number> });
-    for (const b of bets) {
-      if (Math.floor(b.settled / DAY) < window(tf)) continue;
-      o.bets++;
-      if (b.pnl > 0) o.wins++;
-      o.staked += b.cost;
-      o.profit += b.pnl;
-      const s = (o.sports[b.sport] ??= { bets: 0, profit: 0 });
-      s.bets++;
-      s.profit += b.pnl;
-      const g = gammaCache.get(b.slug);
-      const lead = g?.start ? Math.round((g.start - b.entry) / 60) : null;
-      const t = LEAD_TIMING(lead, !!g?.isGame);
-      o.timing[t] = (o.timing[t] ?? 0) + 1;
-    }
-  }
-  const openNow = open.filter((p) => !(p.redeemable || p.status === "REDEEMABLE") && p.current_size > 0 && sportOf(p));
-  return { out, openCount: openNow.length, rows: closed.length + open.length };
-}
+// ─── 3. Independent recompute from Polymarket raw data (shared with the worker's continuous audit) ───
 
 async function auditBettors(pool: string[]) {
   section("Per-bettor values vs Polymarket raw data");
-  await loadLeagueCodes();
   const sampleAddrs = [...new Set(pool)].sort(() => Math.random() - 0.5).slice(0, SAMPLE);
   const profiles = new Map<string, Profile>();
   let compared = 0;
@@ -235,10 +161,10 @@ async function auditBettors(pool: string[]) {
     profiles.set(address, p);
     if (p.bettor.historyTruncated || !p.bettor.lastIndexedAt) continue;
     const asOf = Math.floor(Date.parse(p.bettor.lastIndexedAt) / 1000);
-    const r = await recompute(address, asOf);
+    const r = { out: await recomputeFromRaw(address, asOf) };
     compared++;
     const who = `${p.bettor.name} ${address.slice(0, 10)}`;
-    for (const tf of ["7d", "30d", "all"]) {
+    for (const tf of ["7d", "30d", "all"] as const) {
       const app = views[tf].filtered;
       const ref = r.out[tf];
       // Bets settling right at the index moment can land on either side: allow one bet of slack.
