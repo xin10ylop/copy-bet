@@ -93,7 +93,7 @@ const KEYWORDS: [RegExp, SportKey][] = [
   [/premier league|champions league|world cup|la liga|serie a|bundesliga|ballon d'or/i, "soccer"],
   [/world series|\bmlb\b/i, "baseball"],
   [/stanley cup|\bnhl\b/i, "hockey"],
-  [/grand slam|wimbledon|us open|roland garros|australian open/i, "tennis"],
+  [/grand slam|wimbledon|us open|roland garros|french open|australian open|miami open|indian wells|boss open|internazionali|six kings|madrid open|\btennis\b|\b(atp|wta)\b/i, "tennis"],
   [/\bufc\b|boxing|\bfights?\b/i, "combat"],
   [/formula 1|\bf1\b|grand prix|nascar/i, "racing"],
   [/masters|ryder cup|\bpga\b/i, "golf"],

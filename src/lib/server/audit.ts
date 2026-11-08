@@ -33,7 +33,7 @@ export async function checkBettor(address: string): Promise<string[]> {
 }
 
 // ─── Independent recompute from Polymarket's raw positions ───────────────────
-const gameCache = new Map<string, { sport: string | null; isGame: boolean; start: number | null }>();
+const gameCache = new Map<string, { sport: string | null; isGame: boolean; start: number | null; missing?: boolean }>();
 async function events(slugs: string[]) {
   const missing = [...new Set(slugs)].filter((s) => !gameCache.has(s));
   for (let i = 0; i < missing.length; i += 40) {
@@ -43,7 +43,7 @@ async function events(slugs: string[]) {
       const cls = classifySlug(e.slug) ?? classifyTags(tags);
       gameCache.set(e.slug, { sport: cls?.sport ?? null, isGame: !!cls && tags.includes("games"), start: e.startTime ? Date.parse(e.startTime) / 1000 : null });
     }
-    for (const s of chunk) if (!gameCache.has(s)) gameCache.set(s, { sport: classifySlug(s)?.sport ?? null, isGame: false, start: null });
+    for (const s of chunk) if (!gameCache.has(s)) gameCache.set(s, { sport: classifySlug(s)?.sport ?? null, isGame: false, start: null, missing: true });
   }
 }
 
@@ -75,7 +75,13 @@ export async function recomputeFromRaw(address: string, asOfS: number): Promise<
   await loadLeagueCodes();
   const [closed, open] = await Promise.all([pm.positions(address, "CLOSED", 50_000), pm.positions(address, "OPEN", 10_000)]);
   await events([...closed, ...open].map((p) => p.event_slug));
-  const sportOf = (p: pm.Position) => classifySlug(p.event_slug)?.sport ?? gameCache.get(p.event_slug)?.sport ?? classifyKeywords(p.event_slug, p.title)?.sport ?? null;
+  // League code first, then Polymarket's own tags (authoritative: "not sports" stays not sports), keywords only if never looked up.
+  const sportOf = (p: pm.Position) => {
+    const bySlug = classifySlug(p.event_slug);
+    if (bySlug) return bySlug.sport;
+    const g = gameCache.get(p.event_slug);
+    return g && !g.missing ? g.sport : (classifyKeywords(p.event_slug, p.title)?.sport ?? null);
+  };
   const markets = new Map<string, { sport: string; cost: number; pnl: number; settled: number; entry: number; slug: string }>();
   for (const p of [...closed, ...open.filter((q) => q.redeemable || q.status === "REDEEMABLE")]) {
     const sport = sportOf(p);
@@ -85,8 +91,9 @@ export async function recomputeFromRaw(address: string, asOfS: number): Promise<
     const settled = p.status === "CLOSED" ? p.last_event_at : Math.min(asOfS, Math.max(p.last_event_at, end || p.last_event_at));
     const entry = p.first_entry_at || p.last_event_at;
     const m = markets.get(p.condition_id);
-    if (m) Object.assign(m, { cost: m.cost + stake(p), pnl: m.pnl + pnl, settled: Math.max(m.settled, settled), entry: Math.min(m.entry, entry) });
-    else markets.set(p.condition_id, { sport, cost: stake(p), pnl, settled, entry, slug: p.event_slug });
+    const cost = Math.max(stake(p), -pnl); // nobody loses more than they paid
+    if (m) Object.assign(m, { cost: m.cost + cost, pnl: m.pnl + pnl, settled: Math.max(m.settled, settled), entry: Math.min(m.entry, entry) });
+    else markets.set(p.condition_id, { sport, cost, pnl, settled, entry, slug: p.event_slug });
   }
   const bets = [...markets.values()].filter((b) => b.cost >= 1 && b.settled <= asOfS + EDGE_S);
   const from = { "7d": Math.floor((asOfS - 7 * 86400) / 86400), "30d": Math.floor((asOfS - 30 * 86400) / 86400), all: -Infinity };

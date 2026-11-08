@@ -133,10 +133,16 @@ async function auditRankings() {
 // ─── 2. List vs profile ──────────────────────────────────────────────────────
 async function auditListVsProfile(samples: { address: string; q: Record<string, string>; row: Row }[]) {
   section("Ranked list vs profile");
-  for (const { address, q, row } of samples.sort(() => Math.random() - 0.5).slice(0, 60)) {
+  for (const { address, q } of samples.sort(() => Math.random() - 0.5).slice(0, 60)) {
+    // Opening a profile can refresh the bettor, so read the list row again afterwards: same moment, same data.
     const p = await api<Profile>(`/api/bettors/${address}?${new URLSearchParams(q)}`);
     const s = p.filtered;
-    const who = `${row.name} ${address.slice(0, 10)} [${JSON.stringify(q)}]`;
+    const [row] = (await api<{ rows: Row[] }>(`/api/bettors?${new URLSearchParams({ ...q, a: address })}`)).rows;
+    const who = `${p.bettor.name} ${address.slice(0, 10)} [${JSON.stringify(q)}]`;
+    if (!row) {
+      check(s.bets < 10 || s.staked < 1000, () => `${who}: qualifies on the profile but missing from the ranking`);
+      continue;
+    }
     check(s.bets === row.bets && s.wins === row.wins, () => `${who}: list ${row.bets} bets/${row.wins} wins, profile ${s.bets}/${s.wins}`);
     check(close(s.profit, row.profit) && close(s.staked, row.staked), () => `${who}: list ${money(row.profit)}/${money(row.staked)}, profile ${money(s.profit)}/${money(s.staked)}`);
     check(close(s.roi, row.roi, 0.001) && close(s.winRate, row.winRate, 0.001), () => `${who}: ROI/win rate differ between list and profile`);

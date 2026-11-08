@@ -62,8 +62,9 @@ const SORT_SQL: Record<BettorFilter["sort"], string> = {
   bets: `"bets" DESC, "roi" DESC, "address"`,
 };
 
-export async function listBettors(f: BettorFilter, limit = 30, offset = 0): Promise<{ rows: BettorRow[]; total: number }> {
+export async function listBettors(f: BettorFilter, limit = 30, offset = 0, only?: string): Promise<{ rows: BettorRow[]; total: number }> {
   const p = new Params();
+  const onlyOne = only ? `b."address" = ${p.add(only.toLowerCase())} AND ` : "";
   const openSports = f.sports.length ? `AND o."sport" IN (${p.list(f.sports)})` : "";
   const where = betWhere(f, p);
 
@@ -94,7 +95,7 @@ export async function listBettors(f: BettorFilter, limit = 30, offset = 0): Prom
         (SELECT COUNT(*) FROM "Follow" fo WHERE fo."bettorId" = b."address")::int AS "followers",
         ${openSports ? `(SELECT COUNT(*) FROM "OpenPosition" o WHERE o."bettorId" = b."address" ${openSports})::int` : `b."openCount"`} AS "openCount"
       FROM "Bettor" b JOIN "DailyStat" d ON d."bettorId" = b."address"
-      WHERE b."isMarketMaker" = false AND ${f.timeframe === "all" ? `b."historyTruncated" = false AND ` : ""}${where}
+      WHERE ${onlyOne}b."isMarketMaker" = false AND ${f.timeframe === "all" ? `b."historyTruncated" = false AND ` : ""}${where}
       GROUP BY b."address", b."openCount"
     ) t
     ${outer.length ? `WHERE ${outer.join(" AND ")}` : ""}`;
@@ -134,7 +135,8 @@ export async function listBettors(f: BettorFilter, limit = 30, offset = 0): Prom
 async function sportMix(addresses: string[], f: BettorFilter) {
   const p = new Params();
   const inList = p.list(addresses);
-  const where = betWhere({ sports: [], timing: [], timeframe: f.timeframe }, p);
+  // Same bets as the row's figures: the active sports, timing and timeframe.
+  const where = betWhere({ sports: f.sports, timing: f.timing, timeframe: f.timeframe }, p);
   const rows = await db.$queryRawUnsafe<{ bettorId: string; sport: string; n: number }[]>(
     `SELECT d."bettorId" AS "bettorId", d."sport" AS "sport", SUM(d."bets")::int AS "n" FROM "DailyStat" d
      WHERE d."bettorId" IN (${inList}) AND ${where}

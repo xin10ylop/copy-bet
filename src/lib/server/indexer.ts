@@ -26,8 +26,11 @@ export async function eventMeta(slugs: string[]) {
   const unique = [...new Set(slugs)].filter(Boolean);
   const known = unique.length ? await db.eventMeta.findMany({ where: { slug: { in: unique } } }) : [];
   const map = new Map<string, Meta>(known.map((e) => [e.slug, e]));
-  // Re-check game events that had no start time yet (at most once an hour), and rows saved before tags were stored.
-  const stale = (e: Meta) => (e.isGame && !e.startTime && Date.now() - e.fetchedAt.getTime() > 3600_000) || (e.sport === null && !classifySlug(e.slug));
+  // Re-read (at most hourly) games without a start time and games around now, whose kick-off Polymarket sometimes
+  // corrects (it decides "live" vs "last hour"); and rows saved before tags were stored.
+  const hourOld = (e: Meta) => Date.now() - e.fetchedAt.getTime() > 3600_000;
+  const nearNow = (e: Meta) => !!e.startTime && Math.abs(e.startTime.getTime() - Date.now()) < 3 * 86400_000;
+  const stale = (e: Meta) => (e.isGame && (!e.startTime || nearNow(e)) && hourOld(e)) || (e.sport === null && !classifySlug(e.slug));
   const missing = unique.filter((s) => !map.has(s) || stale(map.get(s)!));
   if (missing.length) {
     const events = await pm.gammaEvents(missing);
@@ -115,8 +118,10 @@ export async function indexBettor(addressRaw: string, hint: IndexHint = {}) {
 
   const settledRows = settledSrc
     .map(({ p, cls }) => {
-      const cost = pm.stakeOf(p);
       const pnl = p.status === "CLOSED" ? p.realized_pnl : (p.total_pnl ?? p.realized_pnl);
+      // Nobody loses more than they paid: when Polymarket's cost fields miss shares bought another way
+      // (merge/convert), the amount lost is the better floor for the stake.
+      const cost = Math.max(pm.stakeOf(p), -pnl);
       const m = meta.get(p.event_slug);
       const start = m?.startTime ?? null;
       const entryS = p.first_entry_at || p.last_event_at;

@@ -177,21 +177,28 @@ export function trades(user: string, max = 50) {
 }
 
 export async function gammaEvents(slugs: string[], concurrency = 4): Promise<GammaEvent[]> {
-  const chunks: string[][] = [];
-  for (let i = 0; i < slugs.length; i += 40) chunks.push(slugs.slice(i, i + 40));
   const out: GammaEvent[] = [];
-  await Promise.all(
-    Array.from({ length: concurrency }, async () => {
-      for (let chunk = chunks.shift(); chunk; chunk = chunks.shift()) {
-        const q = chunk.map((s) => `slug=${encodeURIComponent(s)}`).join("&");
-        try {
-          out.push(...(await getJson<GammaEvent[]>(`${GAMMA}/events?${q}&limit=${chunk.length}`)));
-        } catch {
-          // one bad chunk shouldn't stop indexing
+  const run = async (list: string[], size: number) => {
+    const chunks: string[][] = [];
+    for (let i = 0; i < list.length; i += size) chunks.push(list.slice(i, i + size));
+    await Promise.all(
+      Array.from({ length: concurrency }, async () => {
+        for (let chunk = chunks.shift(); chunk; chunk = chunks.shift()) {
+          const q = chunk.map((s) => `slug=${encodeURIComponent(s)}`).join("&");
+          try {
+            out.push(...(await getJson<GammaEvent[]>(`${GAMMA}/events?${q}&limit=${chunk.length}`)));
+          } catch {
+            // retried below in smaller chunks
+          }
         }
-      }
-    }),
-  );
+      }),
+    );
+  };
+  await run(slugs, 40);
+  // Anything missing (a failed or truncated request) gets one more try in small chunks.
+  const got = new Set(out.map((e) => e.slug));
+  const missing = slugs.filter((s) => !got.has(s));
+  if (missing.length) await run(missing, 10);
   return out;
 }
 
