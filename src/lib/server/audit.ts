@@ -88,7 +88,8 @@ export async function recomputeFromRaw(address: string, asOfS: number): Promise<
     if (!sport) continue;
     const pnl = p.status === "CLOSED" ? p.realized_pnl : (p.total_pnl ?? p.realized_pnl);
     const end = p.end_date ? Date.parse(p.end_date) / 1000 : 0;
-    const settled = p.status === "CLOSED" ? p.last_event_at : Math.min(asOfS, Math.max(p.last_event_at, end || p.last_event_at));
+    // When the result was decided (the sale or the game's end), not when winnings were collected.
+    const settled = p.status === "CLOSED" ? (end ? Math.min(p.last_event_at, Math.max(end, p.first_entry_at || 0)) : p.last_event_at) : Math.min(asOfS, Math.max(p.last_event_at, end || p.last_event_at));
     const entry = p.first_entry_at || p.last_event_at;
     const m = markets.get(p.condition_id);
     const cost = Math.max(stake(p), -pnl); // nobody loses more than they paid

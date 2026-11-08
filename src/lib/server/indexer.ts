@@ -127,7 +127,8 @@ export async function indexBettor(addressRaw: string, hint: IndexHint = {}) {
       const entryS = p.first_entry_at || p.last_event_at;
       const lead = start ? Math.round((start.getTime() / 1000 - entryS) / 60) : null;
       const endS = p.end_date ? Math.floor(Date.parse(p.end_date) / 1000) : 0;
-      const settledS = p.status === "CLOSED" ? p.last_event_at : Math.min(nowS, Math.max(p.last_event_at, endS || p.last_event_at));
+      // Settled = when the result was decided: the sale, or the game's end. Collecting winnings later doesn't move the bet.
+      const settledS = p.status === "CLOSED" ? (endS ? Math.min(p.last_event_at, Math.max(endS, p.first_entry_at || 0)) : p.last_event_at) : Math.min(nowS, Math.max(p.last_event_at, endS || p.last_event_at));
       return {
         id: `${address}:${p.condition_id}:${p.outcome_index}`,
         conditionId: p.condition_id,

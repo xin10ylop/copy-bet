@@ -256,6 +256,13 @@ function translate(titleRaw: string, outcomeRaw: string, eventTitle?: string | n
   if ((m = title.match(/^(Game|Map|Set)\s+(\d+)\s+Winner:\s*(.+)$/i))) return { selection: outcome, market: `${m[1]} ${m[2]} winner`, event: vs(m[3]) };
 
   // Scorers: "Derrick Henry: Anytime Touchdown", "Lionel Messi: 2+ goals"
+  // "Sam Darnold: Team First TD (Seattle Seahawks)", "Derrick Henry: First Touchdown"
+  if ((m = title.match(/^(.+?):\s*(Team\s+)?(First|Last)\s+(TD|Touchdown|Touchdown Scorer|Goalscorer|Goal Scorer|Scorer)(?:\s*\((.+)\))?$/i))) {
+    const [, who, team, which, what, side] = m;
+    const kind = /touch|td/i.test(what) ? "touchdown scorer" : "goalscorer";
+    const market = `${team ? `${side ? `${side} ` : "Team "}` : ""}${which.toLowerCase()} ${kind}`;
+    return { selection: yes ? who : `${who} – No`, market: cap(market), event: ev };
+  }
   if ((m = title.match(/^(.+?):\s*Anytime (Touchdown|Goalscorer|Scorer|TD)$/i))) {
     const td = /touch|td/i.test(m[2]);
     return { selection: yes ? m[1] : `${m[1]} – No`, market: td ? "Anytime touchdown scorer" : "Anytime goalscorer", event: ev };
